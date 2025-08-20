@@ -1,0 +1,44 @@
+{
+  "name": "dora-ros1-to-ros2-image-bridge",
+  "version": "1.0.0",
+  "description": "ROS1 to ROS2 Image Bridge Example for Dora Dataflow",
+  "scripts": {
+    "setup": "./scripts/setup.sh",
+    "build:ros1": "docker build -f Dockerfile.ros1 -t dora-ros1-builder . && docker run --rm -v $(pwd):/workspace dora-ros1-builder",
+    "build:ros2": "cargo build -p ros2-image-sink",
+    "build:ros2:docker": "docker build -f Dockerfile.ros2 -t dora-ros2-builder . && docker run --rm -v $(pwd):/workspace dora-ros2-builder",
+    "build": "npm run build:ros1 && npm run build:ros2",
+    "build:local": "npm run build:ros2",
+    "build:docker": "npm run build:ros1 && npm run build:ros2:docker",
+    "create-release": "./scripts/create-release.sh",
+    "test:setup": "./scripts/test-setup.sh",
+    "start": "dora run ./dataflow.yml",
+    "start:dev": "dora run ./dataflow.yml",
+    "start:with-viewer": "./scripts/run-with-viewer.sh",
+    "logs": "dora logs",
+    "logs:source": "dora logs ros1-image-source",
+    "logs:sink": "dora logs ros2-image-sink",
+    "stop": "dora stop",
+    "clean": "cargo clean",
+    "dev": "npm run build && npm run start",
+    "dev:watch": "npm run build && npm run start:dev",
+    "metrics:start": "./scripts/start-metrics.sh",
+    "metrics:stop": "./scripts/stop-metrics.sh",
+    "metrics:cleanup": "./scripts/cleanup-metrics.sh",
+    "metrics:test": "./scripts/test-metrics.sh"
+  },
+  "keywords": [
+    "dora",
+    "ros1",
+    "ros2",
+    "image",
+    "bridge",
+    "rust",
+    "dataflow"
+  ],
+  "author": "Dora Team",
+  "license": "MIT",
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}

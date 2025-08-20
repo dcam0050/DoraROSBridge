@@ -1,0 +1,14 @@
+apiVersion: 1
+
+datasources:
+  - name: influxdb
+    type: influxdb
+    access: proxy
+    url: http://influxdb:8086
+    secureJsonData:
+      token: dora-token
+    jsonData:
+      version: Flux
+      organization: dora-org
+      defaultBucket: dora-metrics
+      tlsSkipVerify: true

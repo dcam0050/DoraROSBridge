@@ -1,0 +1,23 @@
+# Build ROS1 nodes with Noetic and Rust toolchain, output to /workspace/target
+FROM ros:noetic-ros-base
+
+# Install build essentials, Rust, and ROS tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake curl git ca-certificates pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rustup + stable toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Create workspace dir
+WORKDIR /workspace
+
+# Source ROS1 environment
+RUN echo "source /opt/ros/noetic/setup.bash" >> ~/.bashrc
+ENV CMAKE_PREFIX_PATH="/opt/ros/noetic"
+ENV ROS_PACKAGE_PATH="/opt/ros/noetic/share"
+ENV ROSRUST_MSG_PATH="/opt/ros/noetic/share"
+
+# Default command builds the ROS1 image source node
+CMD ["cargo", "build", "-p", "ros1-image-source"]

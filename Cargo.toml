@@ -1,0 +1,15 @@
+[workspace]
+members = [
+    "ros1-source",
+    "ros2-sink"
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.70"
+
+[workspace.dependencies]
+dora-node-api = "0.3.0"
+dora-ros2-bridge = "0.3.0"

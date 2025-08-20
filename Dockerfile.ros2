@@ -1,0 +1,25 @@
+# Build ROS2 nodes with Rolling and Rust toolchain, output to /workspace/target
+FROM ros:rolling-ros-base
+
+# Install build essentials, Rust, and ROS2 tools
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential cmake curl git ca-certificates pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install rustup + stable toolchain
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Create workspace dir
+WORKDIR /workspace
+
+# Source ROS2 environment
+RUN echo "source /opt/ros/rolling/setup.bash" >> ~/.bashrc
+ENV PATH="/opt/ros/rolling/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/opt/ros/rolling/lib"
+ENV PYTHONPATH="/opt/ros/rolling/lib/python3/dist-packages"
+ENV ROS_DISTRO="rolling"
+ENV ROS_VERSION="2"
+
+# Default command builds the ROS2 image sink node
+CMD ["cargo", "build", "-p", "ros2-image-sink"]
