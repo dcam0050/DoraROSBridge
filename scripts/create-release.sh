@@ -48,29 +48,14 @@ cp "target/bin/dora" "$RELEASE_DIR/bin/"
 
 # Create release-specific dataflow configuration
 echo "Creating release dataflow configuration..."
-cat > "$RELEASE_DIR/dataflow.yml" << 'EOF'
-nodes:
-  - id: ros1-image-source
-    path: ./bin/ros1-image-source
-    inputs:
-      tick: dora/timer/millis/10
-    env:
-      ROS_MASTER_URI: "http://tiago-119c:11311"
-      ROS_HOSTNAME: "katana"
-      ROS_IMAGE_TOPIC: "/xtion/rgb/image_raw"
-      CMAKE_PREFIX_PATH: "/opt/ros/noetic"
-      ROS_PACKAGE_PATH: "/opt/ros/noetic/share"
-      ROSRUST_MSG_PATH: "/opt/ros/noetic/share"
-    outputs:
-      - image
+cp dataflow.yml "$RELEASE_DIR/dataflow.yml"
 
-  - id: ros2-image-sink
-    path: ./bin/ros2-image-sink
-    inputs:
-      image: ros1-image-source/image
-    env:
-      ROS2_TOPIC: "/camera/image_raw"
-EOF
+# Update paths to use release binaries
+sed -i 's|path: target/debug/ros1-image-source|path: ./bin/ros1-image-source|g' "$RELEASE_DIR/dataflow.yml"
+sed -i 's|path: target/debug/ros2-image-sink|path: ./bin/ros2-image-sink|g' "$RELEASE_DIR/dataflow.yml"
+
+# Remove build command for ros2-image-sink since we're using pre-built binaries
+sed -i '/build: cargo build -p ros2-image-sink/d' "$RELEASE_DIR/dataflow.yml"
 
 # Copy run script
 echo "Creating run script..."
