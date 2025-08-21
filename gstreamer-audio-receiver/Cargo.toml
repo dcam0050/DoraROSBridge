@@ -1,0 +1,15 @@
+[package]
+name = "gstreamer-audio-receiver"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dora-node-api = "0.3"
+eyre = "0.6"
+futures = { version = "0.3", features = ["thread-pool"] }
+tokio = { version = "1.0", features = ["full"] }
+gstreamer = "0.21"
+gstreamer-app = "0.21"
+gstreamer-rtp = "0.21"
+gstreamer-audio = "0.21"
+bytes = "1.0"

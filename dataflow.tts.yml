@@ -1,0 +1,29 @@
+nodes:
+  - id: ros2-tts-source
+    build: cargo build -p ros2-tts-source
+    path: target/debug/ros2-tts-source
+    inputs:
+      tick: dora/timer/millis/100
+    env:
+      ROS2_TEXT_TOPIC: "/robot/say"
+      # OpenTelemetry environment variables
+      OTEL_SERVICE_NAME: "ros2-tts-source"
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=ros2-tts-source"
+    outputs:
+      - text
+
+  - id: ros1-tts-sink
+    build: cargo build -p ros1-tts-sink
+    path: target/debug/ros1-tts-sink
+    inputs:
+      text: ros2-tts-source/text
+    env:
+      ROS_MASTER_URI: "http://tiago-119c:11311"
+      ROS_HOSTNAME: "katana"
+      ROS_TTS_TOPIC: "/tts/say"
+      CMAKE_PREFIX_PATH: "/opt/ros/noetic"
+      ROS_PACKAGE_PATH: "/opt/ros/noetic/share"
+      ROSRUST_MSG_PATH: "/opt/ros/noetic/share"
+      # OpenTelemetry environment variables
+      OTEL_SERVICE_NAME: "ros1-tts-sink"
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=ros1-tts-sink"

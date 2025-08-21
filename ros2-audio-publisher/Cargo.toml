@@ -1,0 +1,11 @@
+[package]
+name = "ros2-audio-publisher"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+dora-node-api = "0.3"
+dora-ros2-bridge = { workspace = true }
+eyre = "0.6"
+futures = { version = "0.3", features = ["thread-pool"] }
+rustdds = "0.10"

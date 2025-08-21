@@ -1,9 +1,11 @@
 [workspace]
 members = [
-    "ros1-source",
-    "ros2-sink",
+    "ros1-image-source",
+    "ros2-image-sink",
     "ros1-tts-sink",
-    "ros2-tts-source"
+    "ros2-tts-source",
+    "gstreamer-audio-receiver",
+    "ros2-audio-publisher"
 ]
 resolver = "2"
 
@@ -14,4 +16,4 @@ rust-version = "1.70"
 
 [workspace.dependencies]
 dora-node-api = "0.3.0"
-dora-ros2-bridge = "0.3.0"
+dora-ros2-bridge = { path = "/home/daniel/Projects/dora/libraries/extensions/ros2-bridge" }

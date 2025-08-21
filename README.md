@@ -1,6 +1,17 @@
-# ROS1 to ROS2 Image Bridge Example
+# ROS1 to ROS2 Bridge Examples
 
-This example demonstrates how to bridge image data from ROS1 to ROS2 using Dora dataflow. The `ros1-image-source` subscribes to a ROS1 topic publishing `sensor_msgs/Image`, and the `ros2-image-sink` publishes the received images to a ROS2 topic.
+This project demonstrates how to bridge data between ROS1 and ROS2 using Dora dataflow. It includes multiple examples:
+
+## Examples
+
+### 1. Image Bridge
+The `ros1-image-source` subscribes to a ROS1 topic publishing `sensor_msgs/Image`, and the `ros2-image-sink` publishes the received images to a ROS2 topic.
+
+### 2. TTS (Text-to-Speech) Bridge
+The `ros2-tts-source` subscribes to ROS2 text topics and forwards text to ROS1 TTS topics via the `ros1-tts-sink`.
+
+### 3. Audio Streaming Bridge
+The `gstreamer-audio-receiver` receives audio from a robot via UDP RTP and forwards it to ROS2 via the `ros2-audio-publisher`.
 
 ## Quick Start
 
@@ -187,12 +198,67 @@ To modify the nodes:
    - `npm run build:ros2` for ROS2 changes
 3. Restart the dataflow
 
+## Audio Streaming System
+
+The audio streaming system allows you to stream microphone audio from a robot to ROS2 using GStreamer and Dora nodes.
+
+### Quick Start
+
+```bash
+# 1. Build the audio nodes
+npm run build:audio
+
+# 2. Start the audio streaming system
+npm run start:audio
+
+# 3. Deploy and run the audio sender on the robot
+npm run audio:deploy
+
+# 4. Test the system
+npm run test:audio
+```
+
+### Architecture
+
+```
+┌─────────────────┐    ┌──────────────────────┐    ┌─────────────────────┐
+│   Robot         │───▶│ gstreamer-audio-     │───▶│ ros2-audio-         │
+│ (GStreamer      │    │ receiver             │    │ publisher           │
+│  Sender)        │    │ (UDP RTP → Dora)     │    │ (Dora → ROS2)       │
+└─────────────────┘    └──────────────────────┘    └─────────────────────┘
+```
+
+### Configuration
+
+Edit `python_helpers/deploy_and_run_audio_sender.sh` to configure:
+- `REMOTE_USER`: Username on the robot
+- `REMOTE_HOST`: Hostname/IP of the robot  
+- `LOCAL_IP`: IP address of the local machine receiving audio
+- `UDP_PORT`: UDP port for audio streaming (default: 5004)
+
+### Audio Format
+
+- Sample rate: 48kHz
+- Channels: 1 (mono)
+- Format: S16LE (16-bit signed little-endian)
+- Protocol: RTP L16 payload over UDP
+
+### ROS2 Topics
+
+The system publishes audio data to `/robot/audio` as `std_msgs/UInt8MultiArray` messages.
+
+For more details, see [AUDIO_STREAMING.md](AUDIO_STREAMING.md).
+
 ## Files
 
 - `dataflow.yml`: Main dataflow configuration
+- `dataflow.audio.yml`: Audio streaming dataflow configuration
 - `node/src/main.rs`: ROS1 image subscriber and Dora bridge
 - `ros2-sink/src/main.rs`: ROS2 image publisher
+- `gstreamer-audio-receiver/src/main.rs`: GStreamer audio receiver
+- `ros2-audio-publisher/src/main.rs`: ROS2 audio publisher
 - `run-with-viewer.sh`: Script to run pipeline with image viewer
 - `test-setup.sh`: Script to test your setup
+- `test-audio.sh`: Script to test audio streaming system
+- `python_helpers/deploy_and_run_audio_sender.sh`: Audio sender deployment script
 - `Dockerfile.noetic`: Docker build environment for ROS1 (optional)
-# DoraROSBridge

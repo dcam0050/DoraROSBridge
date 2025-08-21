@@ -12,8 +12,10 @@
     "build:docker": "npm run build:ros1 && npm run build:ros2:docker",
     "create-release": "./scripts/create-release.sh",
     "test:setup": "./scripts/test-setup.sh",
-    "start": "dora run ./dataflow.yml",
-    "start:dev": "dora run ./dataflow.yml",
+    "start": "./scripts/start-all.sh",
+    "start:dev": "./scripts/start-all.sh",
+    "start:image": "dora run ./dataflow.image.yml",
+    "start:tts": "./scripts/start-tts.sh",
     "start:with-viewer": "./scripts/run-with-viewer.sh",
     "logs": "dora logs",
     "logs:source": "dora logs ros1-image-source",
@@ -29,7 +31,10 @@
     "metrics:cleanup": "./scripts/cleanup-metrics.sh",
     "metrics:test": "./scripts/test-metrics.sh",
     "tts:deploy": "./python_helpers/deploy_and_run_remote.sh",
-    "tts:test": "rostopic pub /tts/say std_msgs/String \"data: 'Hello robot, this is a test message'\""
+    "audio:deploy": "./python_helpers/deploy_and_run_audio_sender.sh",
+    "start:audio": "dora run ./dataflow.audio.yml",
+    "build:audio": "cargo build -p gstreamer-audio-receiver && cargo build -p ros2-audio-publisher",
+    "test:audio": "./scripts/test-audio.sh"
   },
   "keywords": [
     "dora",
