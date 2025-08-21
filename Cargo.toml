@@ -1,7 +1,9 @@
 [workspace]
 members = [
     "ros1-source",
-    "ros2-sink"
+    "ros2-sink",
+    "ros1-tts-sink",
+    "ros2-tts-source"
 ]
 resolver = "2"
 
