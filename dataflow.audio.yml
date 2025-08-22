@@ -8,7 +8,18 @@ nodes:
       AUDIO_UDP_PORT: "5004"
       AUDIO_SAMPLE_RATE: "48000"
       AUDIO_CHANNELS: "1"
-      AUDIO_FORMAT: "S16LE"
+      # Optional overrides (uncomment/set as needed)
+      # AUDIO_ENCODING_NAME: "L16"           # e.g. OPUS, L16, PCMA, PCMU
+      # AUDIO_PAYLOAD: "96"
+      # AUDIO_CLOCK_RATE: "48000"           # defaults to AUDIO_SAMPLE_RATE
+      # AUDIO_JITTERBUFFER_LATENCY: "10"     # milliseconds
+      # AUDIO_VOLUME: "0.5"
+      # AUDIO_APPSINK_SYNC: "false"
+      # AUDIO_APPSINK_DROP: "true"
+      # AUDIO_APPSINK_MAX_BUFFERS: "100"
+      # AUDIO_FORCE_FORMAT: "S16LE"          # target raw caps format
+      # AUDIO_PIPELINE_OVERRIDE: "..."       # full pipeline string override
+      ENABLE_PLAYBACK: "false"
       # OpenTelemetry environment variables
       OTEL_SERVICE_NAME: "gstreamer-audio-receiver"
       OTEL_RESOURCE_ATTRIBUTES: "service.name=gstreamer-audio-receiver"
@@ -25,3 +36,17 @@ nodes:
       # OpenTelemetry environment variables
       OTEL_SERVICE_NAME: "ros2-audio-publisher"
       OTEL_RESOURCE_ATTRIBUTES: "service.name=ros2-audio-publisher"
+
+  - id: dora-audio-sink
+    build: cargo build -p dora-audio-sink
+    path: target/debug/dora-audio-sink
+    inputs:
+      audio: gstreamer-audio-receiver/audio
+    env:
+      ENABLE_PLAYBACK: "false"
+      ENABLE_DEBUG: "true"
+      DEBUG_MAX_ENTRIES: "10"
+      DEBUG_FILE: "audio_debug.json"
+      # OpenTelemetry environment variables
+      OTEL_SERVICE_NAME: "dora-audio-sink"
+      OTEL_RESOURCE_ATTRIBUTES: "service.name=dora-audio-sink"
