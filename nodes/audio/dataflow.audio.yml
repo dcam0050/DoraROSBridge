@@ -37,16 +37,16 @@ nodes:
       OTEL_SERVICE_NAME: "ros2-audio-publisher"
       OTEL_RESOURCE_ATTRIBUTES: "service.name=ros2-audio-publisher"
 
-  - id: dora-audio-sink
-    build: cargo build -p dora-audio-sink
-    path: target-ros2/debug/dora-audio-sink
-    inputs:
-      audio: gstreamer-audio-receiver/audio
-    env:
-      ENABLE_PLAYBACK: "false"
-      ENABLE_DEBUG: "true"
-      DEBUG_MAX_ENTRIES: "10"
-      DEBUG_FILE: "audio_debug.json"
-      # OpenTelemetry environment variables
-      OTEL_SERVICE_NAME: "dora-audio-sink"
-      OTEL_RESOURCE_ATTRIBUTES: "service.name=dora-audio-sink"
+  # - id: dora-audio-sink
+  #   build: cargo build -p dora-audio-sink
+  #   path: target-ros2/debug/dora-audio-sink
+  #   inputs:
+  #     audio: gstreamer-audio-receiver/audio
+  #   env:
+  #     ENABLE_PLAYBACK: "false"
+  #     ENABLE_DEBUG: "true"
+  #     DEBUG_MAX_ENTRIES: "10"
+  #     DEBUG_FILE: "audio_debug.json"
+  #     # OpenTelemetry environment variables
+  #     OTEL_SERVICE_NAME: "dora-audio-sink"
+  #     OTEL_RESOURCE_ATTRIBUTES: "service.name=dora-audio-sink"

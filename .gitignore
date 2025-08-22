@@ -4,6 +4,9 @@ target-ros1/
 target-ros2/
 Cargo.lock
 
+custom_msgs/build
+custom_msgs/install
+
 # IDE files
 .vscode/
 .idea/

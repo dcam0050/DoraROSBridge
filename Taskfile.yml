@@ -36,8 +36,10 @@ tasks:
   build:
     desc: Build all components
     cmds:
-      - '{{.BUILD_SCRIPTS_DIR}}/build-ros.sh ros1'
-      - '{{.BUILD_SCRIPTS_DIR}}/build-ros.sh ros2'
+      - task build:vision
+      - task build:tts
+      - task build:audio
+      - task build:custom
 
   build:vision:
     desc: Build vision components only
