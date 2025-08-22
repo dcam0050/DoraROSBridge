@@ -7,7 +7,10 @@ members = [
     "nodes/audio/gstreamer-audio-receiver",
     "nodes/audio/ros2-audio-publisher",
     "nodes/audio/dora-audio-sink",
-    "nodes/audio/common-audio-playback"
+    "nodes/audio/common-audio-playback",
+    "nodes/custom/custom-message-test",
+    "dora-ros2-bridge",
+    "dora-ros2-bridge/msg-gen"
 ]
 resolver = "2"
 
@@ -18,4 +21,4 @@ rust-version = "1.70"
 
 [workspace.dependencies]
 dora-node-api = "0.3.0"
-dora-ros2-bridge = { path = "/home/daniel/Projects/dora/libraries/extensions/ros2-bridge" }
+dora-ros2-bridge = { path = "./dora-ros2-bridge" }

@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# Clean up metrics monitoring services and data for dora
-# This script removes all containers, volumes, and data
+# Cleanup metrics script
+# This script stops and cleans up all metrics services
 
 set -e
 
-echo "🧹 Cleaning up dora metrics monitoring services and data..."
+# Source common utilities
+source "$(dirname "$0")/common.sh"
 
-# Check if docker compose is available
-if ! docker compose version &> /dev/null; then
-    echo "❌ docker compose is not available."
-    exit 1
-fi
+log "Cleaning up metrics services..."
 
-# Stop and remove containers, networks, and volumes
+# Stop services
+log "Stopping metrics services..."
 docker compose -f docker-compose.metrics.yml down -v
 
-echo "✅ Metrics services and data cleaned up successfully!"
-echo ""
-echo "💡 To start fresh metrics services: ./scripts/start-metrics.sh"
+# Clean up Docker system
+log "Cleaning up Docker system..."
+docker system prune -f
+
+log "✅ Metrics cleanup completed successfully!"

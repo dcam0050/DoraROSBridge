@@ -2,6 +2,8 @@
 
 A comprehensive ROS1 to ROS2 bridge system built with Dora Dataflow, supporting multiple data modalities including images, audio, and text-to-speech.
 
+> **Note**: This project now uses [task](https://taskfile.dev/) for repository management instead of npm scripts. See [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for details.
+
 ## 🏗️ Project Structure
 
 ```
@@ -45,6 +47,7 @@ ros_bridge/
 - **Docker**: For building ROS1 nodes (optional)
 - **GStreamer**: For audio streaming capabilities
 - **Rust**: For building Rust-based nodes
+- **task**: For repository management (recommended) or npm (legacy)
 
 ### Setup
 
@@ -53,11 +56,16 @@ ros_bridge/
 git clone <repository-url>
 cd ros_bridge
 
+# Install task (if not already installed)
+./install-task.sh
+
 # Install dependencies and setup environment
-npm run setup
+task setup
+# or npm run setup (legacy)
 
 # Build all nodes
-npm run build
+task build
+# or npm run build (legacy)
 ```
 
 ## 📊 Data Modalities
@@ -67,13 +75,16 @@ Stream microphone audio from robot to local system with robust playback.
 
 ```bash
 # Build audio nodes
-npm run build:audio
+task build:audio
+# or npm run build:audio (legacy)
 
 # Start audio streaming
-npm run start:audio
+task start:audio
+# or npm run start:audio (legacy)
 
 # Deploy audio sender to robot
-npm run audio:deploy
+task audio:deploy
+# or npm run audio:deploy (legacy)
 ```
 
 **Features:**
@@ -90,13 +101,16 @@ Bridge ROS1 image topics to ROS2 with optional compression.
 
 ```bash
 # Build image nodes
-npm run build:ros2
+task build:vision
+# or npm run build:vision (legacy)
 
 # Start image bridge
-npm run start:image
+task start:image
+# or npm run start:image (legacy)
 
 # Start with viewer
-npm run start:with-viewer
+task start:with-viewer
+# or npm run start:with-viewer (legacy)
 ```
 
 **Features:**
@@ -110,13 +124,16 @@ Bridge TTS services between ROS1 and ROS2 systems.
 
 ```bash
 # Build TTS nodes
-npm run build:ros2
+task build:tts
+# or npm run build:tts (legacy)
 
 # Start TTS bridge
-npm run start:tts
+task start:tts
+# or npm run start:tts (legacy)
 
 # Deploy to remote robot
-npm run tts:deploy
+task tts:deploy
+# or npm run tts:deploy (legacy)
 ```
 
 **Features:**
@@ -129,39 +146,48 @@ npm run tts:deploy
 ### Local Development
 ```bash
 # Build all nodes
-npm run build
+task build
+# or npm run build (legacy)
 
 # Build specific modality
-npm run build:audio
-npm run build:ros2
+task build:audio
+task build:vision
+task build:tts
+task build:custom
+# or npm run build:audio (legacy)
 
 # Build with Docker (for ROS1 nodes)
-npm run build:docker
+# Docker builds are handled automatically by the build scripts
 ```
 
 ### Docker Support
 ```bash
 # Build ROS1 nodes in Docker
-npm run build:ros1
+task build
+# Docker builds are handled automatically by the build scripts
 
 # Build ROS2 nodes in Docker
-npm run build:ros2:docker
+# Docker builds are handled automatically by the build scripts
 ```
 
 ## 📈 Monitoring & Metrics
 
 ```bash
 # Start metrics collection
-npm run metrics:start
+task metrics:start
+# or npm run metrics:start (legacy)
 
 # View metrics
-npm run metrics:test
+task metrics:test
+# or npm run metrics:test (legacy)
 
 # Stop metrics
-npm run metrics:stop
+task metrics:stop
+# or npm run metrics:stop (legacy)
 
 # Cleanup metrics data
-npm run metrics:cleanup
+task metrics:cleanup
+# or npm run metrics:cleanup (legacy)
 ```
 
 **Features:**
@@ -190,24 +216,85 @@ Update deployment scripts in `python_helpers/`:
 
 ```bash
 # Test setup
-npm run test:setup
+task test:setup
+# or npm run test:setup (legacy)
 
 # Test audio system
-npm run test:audio
+task test:audio
+# or npm run test:audio (legacy)
 
 # Test release package
-npm run test:release-docker
+task test:release
+# or npm run test:release (legacy)
 ```
 
 ## 📦 Release Management
 
 ```bash
 # Create release package
-npm run create-release
+task create-release
+# or npm run create-release (legacy)
 
 # Test release package
-npm run test:release-docker
+task test:release
+# or npm run test:release (legacy)
 ```
+
+## 🚀 Task Commands & MCP Integration
+
+This project uses [task](https://taskfile.dev/) for repository management, providing better integration with MCP servers and improved developer experience.
+
+### Quick Task Commands
+
+```bash
+# Show all available commands
+task help
+
+# Setup and build
+task setup
+task build
+
+# Start systems
+task start          # Complete system
+task start:image    # Image pipeline only
+task start:tts      # TTS system only
+task start:audio    # Audio system only
+task start:custom   # Custom message test
+
+# Testing
+task test:setup     # Test environment
+task test:vision    # Test vision components
+task test:tts       # Test TTS components
+task test:audio     # Test audio system
+task test:metrics   # Test metrics setup
+
+# Monitoring
+task logs           # View all logs
+task stop           # Stop all systems
+task clean          # Clean build artifacts
+
+# Metrics
+task metrics:start  # Start metrics services
+task metrics:stop   # Stop metrics services
+task metrics:test   # Test metrics setup
+
+# Development
+task dev            # Build and start complete system
+```
+
+### MCP Server Benefits
+
+Using task commands enables better integration with MCP servers:
+
+- **Programmatic Execution**: Execute tasks through MCP APIs
+- **Task Discovery**: Get available tasks and descriptions
+- **Dependency Management**: Handle task dependencies automatically
+- **Cross-platform**: Consistent behavior across different operating systems
+- **Performance**: Faster execution than npm scripts
+
+### Migration from npm
+
+If you're migrating from npm scripts, see [MIGRATION_GUIDE.md](MIGRATION_GUIDE.md) for a complete reference.
 
 ## 🐛 Troubleshooting
 

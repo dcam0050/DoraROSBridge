@@ -1,0 +1,14 @@
+# Audio processing action goal
+uint8[] audio_data
+int32 sample_rate
+string format
+---
+# Audio processing action result
+int32 total_samples_processed
+float32 processing_time
+string status_message
+---
+# Audio processing action feedback
+int32 samples_processed_so_far
+float32 current_processing_time
+string current_status

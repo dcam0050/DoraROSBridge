@@ -1,21 +1,16 @@
 #!/bin/bash
 
-# Stop metrics monitoring services for dora
-# This script stops InfluxDB, Grafana, and Telegraf
+# Stop metrics script
+# This script stops all metrics services
 
 set -e
 
-echo "🛑 Stopping dora metrics monitoring services..."
+# Source common utilities
+source "$(dirname "$0")/common.sh"
 
-# Check if docker compose is available
-if ! docker compose version &> /dev/null; then
-    echo "❌ docker compose is not available."
-    exit 1
-fi
+log "Stopping metrics services..."
 
-# Stop the metrics services
+# Stop services
 docker compose -f docker-compose.metrics.yml down
 
-echo "✅ Metrics services stopped successfully!"
-echo ""
-echo "💡 To start metrics services again: ./scripts/start-metrics.sh"
+log "✅ Metrics services stopped successfully!"

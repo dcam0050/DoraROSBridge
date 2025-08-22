@@ -148,7 +148,6 @@ start_audio_stream() {
     gst-launch-1.0 -v \\
         pulsesrc do-timestamp=true buffer-time=10000 latency-time=5000 \\
         ! audio/x-raw,format=\${FORMAT},rate=\${SAMPLE_RATE},channels=\${CHANNELS} \\
-        ! volume volume=0.3 \\
         ! audioconvert \\
         ! rtpL16pay pt=96 \\
         ! udpsink host=\$TARGET_IP port=\$UDP_PORT

@@ -1,59 +1,51 @@
 #!/bin/bash
 
-# ROS1 to ROS2 Image Bridge with Viewer
-# This script starts the complete pipeline and launches an image viewer
+# Run with viewer script
+# This script starts the image pipeline with rqt_image_view
 
 set -e
 
-# Default ROS2 topic, can be overridden with ROS2_TOPIC environment variable
-ROS2_TOPIC="/camera/image_raw"
-echo "🚀 Starting ROS1→ROS2 Image Bridge with viewer..."
-echo "   ROS2 Topic: $ROS2_TOPIC"
-echo ""
+# Source common utilities
+source "$(dirname "$0")/common.sh"
 
-# Function to cleanup on exit
-cleanup() {
-    echo ""
-    echo "🛑 Stopping pipeline..."
-    if [ ! -z "$VIEWER_PID" ]; then
-        echo "   Killing viewer process (PID: $VIEWER_PID)"
-        kill $VIEWER_PID 2>/dev/null || true
-    fi
-    if [ ! -z "$DORA_PID" ]; then
-        echo "   Killing Dora process (PID: $DORA_PID)"
-        kill $DORA_PID 2>/dev/null || true
-    fi
-    echo "✅ Cleanup complete"
-    exit 0
-}
+show_usage "$0" \
+    "This script starts the image pipeline with rqt_image_view for visualization" \
+    "Prerequisites:\n- ROS2 must be installed and sourced\n- rqt_image_view must be available"
 
-# Set up signal handlers
-trap cleanup INT TERM EXIT
+# Check prerequisites
+check_dora
+check_ros2
+check_rqt_image_view
 
-echo "1️⃣  Starting ROS2 image viewer..."
-echo "   Topic: $ROS2_TOPIC"
-ros2 run rqt_image_view rqt_image_view $ROS2_TOPIC &
-VIEWER_PID=$!
-echo "   Viewer PID: $VIEWER_PID"
+log "Starting image pipeline with viewer..."
 
-echo ""
-echo "2️⃣  Waiting for viewer to initialize..."
+# Start the dataflow in background
+dora run ./nodes/image/dataflow.image.yml &
+DORA_PID=$!
+
+# Wait for dataflow to start
 sleep 3
 
-echo ""
-echo "3️⃣  Starting Dora dataflow..."
-npm run start &
-DORA_PID=$!
-echo "   Dora PID: $DORA_PID"
+# Check if Dora is still running
+if ! kill -0 $DORA_PID 2>/dev/null; then
+    error "Dora dataflow failed to start"
+    exit 1
+fi
 
-echo ""
-echo "4️⃣  Pipeline running! 🎉"
-echo "   - ROS2 viewer PID: $VIEWER_PID"
-echo "   - Dora dataflow PID: $DORA_PID"
-echo "   - Viewing topic: $ROS2_TOPIC"
-echo ""
-echo "Press Ctrl+C to stop everything"
-echo ""
+log "Dora dataflow started with PID: $DORA_PID"
 
-# Wait for background processes
+# Start rqt_image_view
+log "Starting rqt_image_view..."
+rqt_image_view &
+VIEWER_PID=$!
+
+log "System started successfully!"
+log "Dora PID: $DORA_PID"
+log "Viewer PID: $VIEWER_PID"
+log "Press Ctrl+C to stop both processes"
+
+# Set up cleanup
+trap "cleanup 'Stopping image pipeline with viewer...' && kill $VIEWER_PID 2>/dev/null || true && exit 0" SIGINT SIGTERM
+
+# Wait for either process to exit
 wait

@@ -4,37 +4,54 @@
   "description": "ROS1 to ROS2 Bridge Example for Dora Dataflow with Image and TTS Support",
   "scripts": {
     "setup": "./build/scripts/setup.sh",
-    "build:ros1": "docker build -f build/docker/Dockerfile.ros1 -t dora-ros1-builder . && docker run --rm -v $(pwd):/workspace dora-ros1-builder",
-    "build:ros2": "cargo build -p ros2-image-sink && cargo build -p ros2-tts-source",
-    "build:ros2:docker": "docker build -f build/docker/Dockerfile.ros2 -t dora-ros2-builder . && docker run --rm -v $(pwd):/workspace dora-ros2-builder",
-    "build": "npm run build:ros1 && npm run build:ros2",
-    "build:local": "npm run build:ros2",
-    "build:docker": "npm run build:ros1 && npm run build:ros2:docker",
+    
+    "build:vision": "./build/scripts/build-ros.sh ros1 ros1-image-source && ./build/scripts/build-ros.sh ros2 ros2-image-sink",
+    "build:tts": "./build/scripts/build-ros.sh ros1 ros1-tts-sink && ./build/scripts/build-ros.sh ros2 ros2-tts-source",
+    "build:audio": "./build/scripts/build-ros.sh ros2 gstreamer-audio-receiver,ros2-audio-publisher,dora-audio-sink",
+    "build:custom": "./build/scripts/build-custom-msgs.sh && ./build/scripts/build-ros.sh ros2 custom-message-test",
+    "build": "./build/scripts/build-ros.sh ros1 && ./build/scripts/build-ros.sh ros2",
+    
     "create-release": "./build/scripts/create-release.sh",
-    "test:setup": "./build/scripts/test-setup.sh",
-    "start": "./build/scripts/start-all.sh",
-    "start:dev": "./build/scripts/start-all.sh",
-    "start:image": "dora run ./nodes/image/dataflow.image.yml",
-    "start:tts": "./build/scripts/start-tts.sh",
-    "start:with-viewer": "./build/scripts/run-with-viewer.sh",
+    "test:release": "bash -c 'source ./build/scripts/common.sh && check_docker && RELEASE_DIR=\"./release\" && if [ ! -d \"$RELEASE_DIR\" ]; then error \"Release directory not found. Run npm run create-release first.\"; exit 1; fi && if [ ! -f \"$RELEASE_DIR/bin/dora\" ] || [ ! -f \"$RELEASE_DIR/bin/ros1-image-source\" ] || [ ! -f \"$RELEASE_DIR/bin/ros2-image-sink\" ]; then error \"Release binaries not found. Run npm run create-release first.\"; exit 1; fi && log \"✅ Release package found and validated\" && log \"Starting ROS1 container...\" && docker run -d --name ros1-core --network host ros:noetic-ros-base roscore && sleep 3 && log \"Starting ROS2 container...\" && docker run -d --name ros2-daemon --network host ros:rolling-ros-base bash -c \"ros2 daemon\" && sleep 3 && log \"Running dataflow...\" && docker run --rm --network host -v \"$RELEASE_DIR:/workspace\" -w /workspace ubuntu:24.04 bash -c \"export PATH=/workspace/bin:\\$PATH && export LD_LIBRARY_PATH=/workspace/lib:\\$LD_LIBRARY_PATH && echo Testing release package... && dora daemon --run-dataflow ./dataflow.image.yml\" && log \"Cleaning up containers...\" && docker stop ros1-core ros2-daemon 2>/dev/null || true && docker rm ros1-core ros2-daemon 2>/dev/null || true && log \"✅ Release package test completed\"'",
+    
+    "test:setup": "bash -c 'source ./build/scripts/common.sh && check_dora && check_ros2 && check_ros1 && check_rqt_image_view && check_node_binaries ros1-image-source ros2-image-sink && echo \"✅ All tests passed! You are ready to run the pipeline.\" && echo \"Next steps:\" && echo \"  npm run start:image  # Run image pipeline\" && echo \"  npm run start:tts    # Run TTS system\" && echo \"  npm run start        # Run complete system\"'",
+    "test:vision": "bash -c 'source ./build/scripts/common.sh && check_dora && check_ros2 && check_ros1 && check_rqt_image_view && npm run build:vision && echo \"✅ Vision components built successfully!\" && echo \"Next steps:\" && echo \"  npm run start:image  # Run image pipeline\" && echo \"  npm run start:with-viewer  # Run with image viewer\"'",
+    "test:tts": "bash -c 'source ./build/scripts/common.sh && check_dora && check_ros2 && check_ros1 && npm run build:tts && echo \"✅ TTS components built successfully!\" && echo \"Next steps:\" && echo \"  npm run start:tts  # Run TTS system\"'",
+    "test:audio": "bash -c 'source ./build/scripts/common.sh && check_dora && check_ros2 && check_gstreamer && npm run build:audio && test_port 5004 udp && start_dora_dataflow ./nodes/audio/dataflow.audio.yml \"audio streaming system\"'",
+    "test:metrics": "bash -c 'source ./build/scripts/common.sh && check_docker && check_docker_compose && echo \"🧪 Testing dora metrics setup...\" && echo \"📊 Checking if metrics services are running...\" && if ! docker ps | grep -q \"dora-influxdb\"; then echo \"❌ InfluxDB is not running. Start with: npm run metrics:start\"; exit 1; fi && if ! docker ps | grep -q \"dora-grafana\"; then echo \"❌ Grafana is not running. Start with: npm run metrics:start\"; exit 1; fi && if ! docker ps | grep -q \"dora-telegraf\"; then echo \"❌ Telegraf is not running. Start with: npm run metrics:start\"; exit 1; fi && echo \"✅ All metrics services are running\" && echo \"🔍 Testing endpoint accessibility...\" && test_http_endpoint http://localhost:8086/health \"InfluxDB\" && test_http_endpoint http://localhost:3000/api/health \"Grafana\" && echo \"✅ Telegraf OpenTelemetry endpoint is accessible at localhost:4317 (gRPC)\" && echo \"\" && echo \"🎯 Next steps:\" && echo \"1. Start your dora dataflow: npm run start\" && echo \"2. Open Grafana: http://localhost:3000 (admin/admin)\" && echo \"3. View the Dora ROS Bridge Metrics dashboard\"'",
+    "test:custom-msgs": "bash -c 'source ./build/scripts/common.sh && check_ros2 && echo \"🧪 Testing custom message compilation...\" && npm run build:custom && echo \"✅ Custom messages compiled successfully!\" && echo \"🎯 Next steps:\" && echo \"  npm run start:custom  # Start custom message test\" && echo \"  ros2 topic list       # List available topics\" && echo \"  ros2 topic echo /custom/audio  # Monitor custom audio topic\"'",
+    
+    "start": "bash -c 'source ./build/scripts/common.sh && check_dora && log \"Starting complete ROS bridge system...\" && TTS_PID=$(deploy_tts_bridge) && sleep 2 && log \"Starting image dataflow...\" && dora run ./nodes/image/dataflow.image.yml & IMAGE_PID=$! && log \"Complete system started successfully!\" && log \"Remote TTS bridge PID: $TTS_PID\" && log \"Image dataflow PID: $IMAGE_PID\" && log \"Press Ctrl+C to stop all processes\" && trap \"cleanup && exit 0\" SIGINT SIGTERM && wait'",
+    "start:dev": "npm run start",
+    "start:image": "bash -c 'source ./build/scripts/common.sh && check_dora && start_dora_dataflow ./nodes/image/dataflow.image.yml \"image pipeline\"'",
+    "start:tts": "bash -c 'source ./build/scripts/common.sh && check_dora && log \"Starting TTS system...\" && TTS_PID=$(deploy_tts_bridge) && sleep 2 && log \"Starting Dora TTS dataflow...\" && dora run ./nodes/tts/dataflow.tts.yml & DORA_PID=$! && log \"TTS system started successfully!\" && log \"Remote TTS bridge PID: $TTS_PID\" && log \"Dora dataflow PID: $DORA_PID\" && log \"Press Ctrl+C to stop both processes\" && trap \"cleanup && exit 0\" SIGINT SIGTERM && wait'",
+    "start:audio": "bash -c 'source ./build/scripts/common.sh && check_dora && start_dora_dataflow ./nodes/audio/dataflow.audio.yml \"audio streaming system\"'",
+    "start:custom": "bash -c 'source ./build/scripts/common.sh && check_dora && AMENT_PREFIX_PATH=\"$(pwd)/custom_msgs/install:$AMENT_PREFIX_PATH\" start_dora_dataflow ./nodes/custom/dataflow.custom.yml \"custom message test system\"'",
+    "start:with-viewer": "bash -c 'source ./build/scripts/common.sh && check_dora && check_ros2 && log \"Starting image pipeline with viewer...\" && dora run ./nodes/image/dataflow.image.yml & DORA_PID=$! && sleep 3 && log \"Starting rqt_image_view...\" && rqt_image_view & VIEWER_PID=$! && log \"System started! Dora PID: $DORA_PID, Viewer PID: $VIEWER_PID\" && log \"Press Ctrl+C to stop both processes\" && trap \"cleanup && kill $VIEWER_PID 2>/dev/null || true && exit 0\" SIGINT SIGTERM && wait'",
+    
     "logs": "dora logs",
     "logs:source": "dora logs ros1-image-source",
     "logs:sink": "dora logs ros2-image-sink",
     "logs:tts-source": "dora logs ros2-tts-source",
     "logs:tts-sink": "dora logs ros1-tts-sink",
+    "logs:audio-receiver": "dora logs gstreamer-audio-receiver",
+    "logs:audio-publisher": "dora logs ros2-audio-publisher",
+    "logs:audio-sink": "dora logs dora-audio-sink",
     "stop": "dora stop",
     "clean": "cargo clean",
+    
     "dev": "npm run build && npm run start",
     "dev:watch": "npm run build && npm run start:dev",
-    "metrics:start": "./build/scripts/start-metrics.sh",
-    "metrics:stop": "./build/scripts/stop-metrics.sh",
-    "metrics:cleanup": "./build/scripts/cleanup-metrics.sh",
-    "metrics:test": "./build/scripts/test-metrics.sh",
+    
+    "metrics:start": "bash -c 'source ./build/scripts/common.sh && check_docker && check_docker_compose && echo \"🚀 Starting dora metrics monitoring services...\" && docker compose -f docker-compose.metrics.yml up -d && echo \"✅ Metrics services started successfully!\" && echo \"\" && echo \"📊 Services available at:\" && echo \"  - Grafana Dashboard: http://localhost:3000 (admin/admin)\" && echo \"  - InfluxDB: http://localhost:8086\" && echo \"  - Telegraf (metrics collector): localhost:4317\" && echo \"\" && echo \"🔍 To view metrics:\" && echo \"  1. Open Grafana at http://localhost:3000\" && echo \"  2. Login with admin/admin\" && echo \"  3. The Dora ROS Bridge Metrics dashboard should be available\" && echo \"\" && echo \"📈 To collect metrics from your dora dataflow:\" && echo \"  1. Start your dora dataflow: npm run start\" && echo \"  2. Metrics will be automatically collected and displayed in Grafana\" && echo \"\" && echo \"🛑 To stop metrics services: npm run metrics:stop\"'",
+    "metrics:stop": "docker compose -f docker-compose.metrics.yml down",
+    "metrics:cleanup": "docker compose -f docker-compose.metrics.yml down -v && docker system prune -f",
+    "metrics:test": "npm run test:metrics",
+    
     "tts:deploy": "./python_helpers/deploy_and_run_remote.sh",
     "audio:deploy": "./python_helpers/deploy_and_run_audio_sender.sh",
-    "start:audio": "dora run ./nodes/audio/dataflow.audio.yml",
-    "build:audio": "cargo build -p gstreamer-audio-receiver && cargo build -p ros2-audio-publisher && cargo build -p dora-audio-sink",
-    "test:audio": "./build/scripts/test-audio.sh"
+    
+    "help": "echo \"Available commands:\" && echo \"  Setup & Build:\" && echo \"    npm run setup          # Initial setup\" && echo \"    npm run build          # Build all components\" && echo \"    npm run build:vision   # Build vision components only\" && echo \"    npm run build:tts      # Build TTS components only\" && echo \"    npm run build:audio    # Build audio components only\" && echo \"    npm run build:custom   # Build custom messages\" && echo \"\" && echo \"  Testing:\" && echo \"    npm run test:setup     # Test environment setup\" && echo \"    npm run test:vision    # Test vision components\" && echo \"    npm run test:tts       # Test TTS components\" && echo \"    npm run test:audio     # Test audio system\" && echo \"    npm run test:metrics   # Test metrics system\" && echo \"    npm run test:custom-msgs # Test custom messages\" && echo \"    npm run test:release   # Test release package with Docker\" && echo \"\" && echo \"  Starting Systems:\" && echo \"    npm run start          # Start complete system\" && echo \"    npm run start:image    # Start image pipeline only\" && echo \"    npm run start:tts      # Start TTS system only\" && echo \"    npm run start:audio    # Start audio system only\" && echo \"    npm run start:custom   # Start custom message test\" && echo \"    npm run start:with-viewer # Start with image viewer\" && echo \"\" && echo \"  Monitoring:\" && echo \"    npm run logs           # View all logs\" && echo \"    npm run logs:source    # View source logs\" && echo \"    npm run logs:sink      # View sink logs\" && echo \"    npm run stop           # Stop all systems\" && echo \"\" && echo \"  Metrics:\" && echo \"    npm run metrics:start  # Start metrics services\" && echo \"    npm run metrics:stop   # Stop metrics services\" && echo \"    npm run metrics:test   # Test metrics setup\" && echo \"\" && echo \"  Deployment:\" && echo \"    npm run tts:deploy     # Deploy TTS to remote robot\" && echo \"    npm run audio:deploy   # Deploy audio sender to remote robot\" && echo \"\" && echo \"  Release:\" && echo \"    npm run create-release # Create release package\" && echo \"\" && echo \"  Development:\" && echo \"    npm run dev            # Build and start complete system\" && echo \"    npm run clean          # Clean build artifacts\"'"
   },
   "keywords": [
     "dora",

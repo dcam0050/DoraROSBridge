@@ -1,0 +1,9 @@
+# Audio processing service request
+uint8[] audio_data
+int32 sample_rate
+string format
+---
+# Audio processing service response
+bool success
+string message
+int32 processed_samples

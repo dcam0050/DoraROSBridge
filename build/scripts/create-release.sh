@@ -1,173 +1,107 @@
 #!/bin/bash
 
-# Create release package for ROS1-ROS2 image bridge
-# This script packages all binaries needed to run the dataflow on a system without Cargo
+# Create release script for ROS bridge
+# This script creates a release package with all necessary components
 
 set -e
 
-echo "Creating release package..."
+# Source common utilities
+source "$(dirname "$0")/common.sh"
+
+# Configuration
+RELEASE_NAME="ros-bridge-release"
+VERSION=$(node -p "require('../../package.json').version")
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+RELEASE_DIR="${RELEASE_NAME}-${VERSION}-${TIMESTAMP}"
+
+log "Creating ROS bridge release..."
+
+# Check prerequisites
+check_docker
 
 # Create release directory
-RELEASE_DIR="release"
-rm -rf "$RELEASE_DIR"
+log "Creating release directory: $RELEASE_DIR"
 mkdir -p "$RELEASE_DIR"
 
-# Get the current project directory
-PROJECT_DIR=$(pwd)
-echo "Project directory: $PROJECT_DIR"
+# Copy essential files
+log "Copying project files..."
+cp -r nodes "$RELEASE_DIR/"
+cp -r build "$RELEASE_DIR/"
+cp -r python_helpers "$RELEASE_DIR/"
+cp package.json "$RELEASE_DIR/"
+cp README.md "$RELEASE_DIR/"
+cp Cargo.toml "$RELEASE_DIR/"
 
-# Build all components first in release mode
-echo "Building all components in release mode..."
+# Copy Docker files
+log "Copying Docker configuration..."
+cp build/docker/Dockerfile.ros1 "$RELEASE_DIR/"
+cp build/docker/Dockerfile.ros2 "$RELEASE_DIR/"
 
-# Build ROS1 node using Docker
-echo "Building ROS1 node using Docker..."
-docker build -f Dockerfile.ros1 -t dora-ros1-builder .
-docker run --rm -v "$PROJECT_DIR:/workspace" dora-ros1-builder cargo build --release -p ros1-image-source
+# Copy metrics configuration if it exists
+if [ -f "docker-compose.metrics.yml" ]; then
+    cp docker-compose.metrics.yml "$RELEASE_DIR/"
+fi
 
-# Build ROS2 node using Docker
-echo "Building ROS2 node using Docker..."
-docker build -f Dockerfile.ros2 -t dora-ros2-builder .
-docker run --rm -v "$PROJECT_DIR:/workspace" dora-ros2-builder cargo build --release -p ros2-image-sink
+# Create release README
+log "Creating release README..."
+cat > "$RELEASE_DIR/RELEASE_README.md" << EOF
+# ROS Bridge Release v${VERSION}
 
-# Build dora-cli using Docker (using ROS2 environment)
-echo "Building dora-cli using Docker..."
-docker run --rm -v "$PROJECT_DIR:/workspace" dora-ros2-builder cargo install dora-cli --root /workspace/target
+This release contains the ROS1 to ROS2 bridge system with image, TTS, and audio support.
 
-# Copy ROS1 node binary
-echo "Copying ROS1 node..."
-mkdir -p "$RELEASE_DIR/bin"
-cp "target/release/ros1-image-source" "$RELEASE_DIR/bin/"
+## Quick Start
 
-# Copy ROS2 node binary  
-echo "Copying ROS2 node..."
-cp "target/release/ros2-image-sink" "$RELEASE_DIR/bin/"
+1. Install dependencies:
+   \`\`\`bash
+   # Install Node.js and npm
+   curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+   sudo apt-get install -y nodejs
+   
+   # Install Docker
+   curl -fsSL https://get.docker.com -o get-docker.sh
+   sudo sh get-docker.sh
+   \`\`\`
 
-# Copy dora-cli binary
-echo "Copying dora-cli..."
-cp "target/bin/dora" "$RELEASE_DIR/bin/"
+2. Setup the environment:
+   \`\`\`bash
+   npm run setup
+   \`\`\`
 
-# Create release-specific dataflow configuration
-echo "Creating release dataflow configuration..."
-    cp nodes/image/dataflow.image.yml "$RELEASE_DIR/dataflow.image.yml"
+3. Test the setup:
+   \`\`\`bash
+   npm run test:setup
+   \`\`\`
 
-# Update paths to use release binaries
-    sed -i 's|path: target/debug/ros1-image-source|path: ./bin/ros1-image-source|g' "$RELEASE_DIR/dataflow.image.yml"
-    sed -i 's|path: target/debug/ros2-image-sink|path: ./bin/ros2-image-sink|g' "$RELEASE_DIR/dataflow.image.yml"
+4. Start the system:
+   \`\`\`bash
+   npm run start
+   \`\`\`
 
-# Remove build command for ros2-image-sink since we're using pre-built binaries
-    sed -i '/build: cargo build -p ros2-image-sink/d' "$RELEASE_DIR/dataflow.image.yml"
+## Available Commands
 
-# Copy run script
-echo "Creating run script..."
-cat > "$RELEASE_DIR/run.sh" << 'EOF'
-#!/bin/bash
+- \`npm run help\` - Show all available commands
+- \`npm run start:image\` - Start image pipeline only
+- \`npm run start:tts\` - Start TTS system only
+- \`npm run start:audio\` - Start audio system only
+- \`npm run metrics:start\` - Start metrics monitoring
 
-# Run the ROS1-ROS2 image bridge dataflow
-# This script runs the dataflow on a system without Cargo
+## Documentation
 
-set -e
+See the main README.md for detailed documentation.
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-export PATH="$SCRIPT_DIR/bin:$PATH"
+## Release Information
 
-echo "Starting ROS1-ROS2 image bridge dataflow..."
-echo "Make sure ROS1 and ROS2 are running in separate terminals:"
-echo "  Terminal 1: roscore"
-echo "  Terminal 2: ros2 daemon"
-
-# Run the dataflow using the included dora binary
-    ./bin/dora run ./dataflow.image.yml
+- Version: ${VERSION}
+- Created: $(date)
+- Timestamp: ${TIMESTAMP}
 EOF
 
-chmod +x "$RELEASE_DIR/run.sh"
+# Create archive
+log "Creating release archive..."
+tar -czf "${RELEASE_DIR}.tar.gz" "$RELEASE_DIR"
 
-# Create README
-echo "Creating README..."
-cat > "$RELEASE_DIR/README.md" << 'EOF'
-# ROS1-ROS2 Image Bridge Release
+# Cleanup
+rm -rf "$RELEASE_DIR"
 
-This release contains all binaries needed to run the ROS1-ROS2 image bridge dataflow.
-
-## Contents
-
-- `bin/` - Compiled binaries
-  - `dora` - Dora CLI for running dataflows
-  - `ros1-image-source` - ROS1 image source node
-  - `ros2-image-sink` - ROS2 image sink node
-- `dataflow.image.yml` - Dataflow configuration
-- `run.sh` - Script to run the dataflow (requires ROS1/ROS2 installed)
-
-## Prerequisites
-
-- ROS1 Noetic installed and sourced
-- ROS2 Rolling installed and sourced
-
-## Usage
-
-1. Start ROS1:
-   ```bash
-   roscore
-   ```
-
-2. Start ROS2:
-   ```bash
-   ros2 daemon
-   ```
-
-3. Run the dataflow:
-   ```bash
-   ./run.sh
-   ```
-
-## Configuration
-
-Before running, update the ROS1 environment variables in `dataflow.image.yml`:
-
-```yaml
-env:
-  ROS_MASTER_URI: "http://your-ros1-master:11311"
-  ROS_HOSTNAME: "your-hostname"
-  ROS_IMAGE_TOPIC: "/your/image/topic"
-```
-
-## Mounting on Ubuntu 24.04
-
-To mount this release on a plain Ubuntu 24.04 system:
-
-1. Copy the release directory to the target system
-2. Ensure ROS1 and ROS2 are installed and running
-3. Configure the dataflow.image.yml file
-4. Run the dataflow script
-
-## Scripts Included
-
-- **`run.sh`** - Runs the dataflow with local ROS1/ROS2 installation
-  - Automatically sets up PATH to find binaries
-  - Provides clear instructions for starting ROS1/ROS2
-
-## Troubleshooting
-
-- Ensure ROS1 and ROS2 are running before starting the dataflow
-- Check that all binaries are executable: `chmod +x bin/*`
-- Verify network connectivity between ROS1 and ROS2
-- The scripts automatically set up the correct PATH environment
-EOF
-
-# Create a tarball for easy distribution
-echo "Creating release tarball..."
-tar -czf "ros-bridge-release.tar.gz" "$RELEASE_DIR"
-
-echo "Release package created successfully!"
-echo "Release directory: $RELEASE_DIR"
-echo "Release tarball: ros-bridge-release.tar.gz"
-echo ""
-echo "✅ Release package includes:"
-echo "   - All compiled binaries (dora, ros1-image-source, ros2-image-sink)"
-echo "   - Fixed run.sh script with proper PATH setup"
-echo "   - Complete documentation and usage instructions"
-echo ""
-echo "To test on Ubuntu 24.04:"
-echo "1. Extract the tarball"
-echo "2. Ensure ROS1 and ROS2 are running"
-echo "3. Configure dataflow.image.yml"
-echo "4. Run: ./run.sh"
+log "✅ Release created successfully: ${RELEASE_DIR}.tar.gz"
+log "Release size: $(du -h "${RELEASE_DIR}.tar.gz" | cut -f1)"

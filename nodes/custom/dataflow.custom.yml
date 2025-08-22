@@ -1,0 +1,74 @@
+nodes:
+  custom_message_test:
+    source: custom-message-test
+    inputs:
+      custom_audio:
+        - id: "custom_audio"
+          data: "test_audio_data"
+      robot_status:
+        - id: "robot_status"
+          data: "test_status_data"
+    outputs:
+      - custom_audio_output
+      - robot_status_output
+    env:
+      ROS2_AUDIO_TOPIC: "/custom/audio"
+      ROS2_STATUS_TOPIC: "/custom/robot_status"
+
+  custom_audio_source:
+    source: python
+    inputs: {}
+    outputs:
+      - custom_audio
+    env:
+      PYTHONPATH: "${PYTHONPATH}:${PWD}/python_helpers"
+    build: |
+      #!/usr/bin/env python3
+      import time
+      import struct
+      
+      # Generate test audio data
+      sample_rate = 48000
+      duration = 1.0  # 1 second
+      num_samples = int(sample_rate * duration)
+      
+      # Generate a simple sine wave
+      audio_data = []
+      frequency = 440.0  # A4 note
+      for i in range(num_samples):
+          t = i / sample_rate
+          sample = int(32767 * 0.3 * math.sin(2 * math.pi * frequency * t))
+          audio_data.extend(struct.pack('<h', sample))
+      
+      # Send audio data
+      yield {
+          "custom_audio": bytes(audio_data)
+      }
+      
+      time.sleep(1.0)
+
+  custom_status_source:
+    source: python
+    inputs: {}
+    outputs:
+      - robot_status
+    env:
+      PYTHONPATH: "${PYTHONPATH}:${PWD}/python_helpers"
+    build: |
+      #!/usr/bin/env python3
+      import time
+      
+      # Send robot status data
+      yield {
+          "robot_status": b"test_robot_status_data"
+      }
+      
+      time.sleep(2.0)
+
+edges:
+  - from: custom_audio_source
+    to: custom_message_test
+    id: custom_audio
+  - from: custom_status_source
+    to: custom_message_test
+    id: robot_status
