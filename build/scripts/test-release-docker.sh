@@ -48,7 +48,7 @@ docker run --rm --network host \
     export PATH=/workspace/bin:\$PATH
     export LD_LIBRARY_PATH=/workspace/lib:\$LD_LIBRARY_PATH
     echo 'Testing release package...'
-    dora-cli daemon --run-dataflow ./dataflow.yml
+    dora-cli daemon --run-dataflow ./dataflow.image.yml
   "
 
 # Cleanup

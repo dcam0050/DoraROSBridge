@@ -48,14 +48,14 @@ cp "target/bin/dora" "$RELEASE_DIR/bin/"
 
 # Create release-specific dataflow configuration
 echo "Creating release dataflow configuration..."
-cp dataflow.yml "$RELEASE_DIR/dataflow.yml"
+    cp nodes/image/dataflow.image.yml "$RELEASE_DIR/dataflow.image.yml"
 
 # Update paths to use release binaries
-sed -i 's|path: target/debug/ros1-image-source|path: ./bin/ros1-image-source|g' "$RELEASE_DIR/dataflow.yml"
-sed -i 's|path: target/debug/ros2-image-sink|path: ./bin/ros2-image-sink|g' "$RELEASE_DIR/dataflow.yml"
+    sed -i 's|path: target/debug/ros1-image-source|path: ./bin/ros1-image-source|g' "$RELEASE_DIR/dataflow.image.yml"
+    sed -i 's|path: target/debug/ros2-image-sink|path: ./bin/ros2-image-sink|g' "$RELEASE_DIR/dataflow.image.yml"
 
 # Remove build command for ros2-image-sink since we're using pre-built binaries
-sed -i '/build: cargo build -p ros2-image-sink/d' "$RELEASE_DIR/dataflow.yml"
+    sed -i '/build: cargo build -p ros2-image-sink/d' "$RELEASE_DIR/dataflow.image.yml"
 
 # Copy run script
 echo "Creating run script..."
@@ -76,7 +76,7 @@ echo "  Terminal 1: roscore"
 echo "  Terminal 2: ros2 daemon"
 
 # Run the dataflow using the included dora binary
-./bin/dora run ./dataflow.yml
+    ./bin/dora run ./dataflow.image.yml
 EOF
 
 chmod +x "$RELEASE_DIR/run.sh"
@@ -94,7 +94,7 @@ This release contains all binaries needed to run the ROS1-ROS2 image bridge data
   - `dora` - Dora CLI for running dataflows
   - `ros1-image-source` - ROS1 image source node
   - `ros2-image-sink` - ROS2 image sink node
-- `dataflow.yml` - Dataflow configuration
+- `dataflow.image.yml` - Dataflow configuration
 - `run.sh` - Script to run the dataflow (requires ROS1/ROS2 installed)
 
 ## Prerequisites
@@ -121,7 +121,7 @@ This release contains all binaries needed to run the ROS1-ROS2 image bridge data
 
 ## Configuration
 
-Before running, update the ROS1 environment variables in `dataflow.yml`:
+Before running, update the ROS1 environment variables in `dataflow.image.yml`:
 
 ```yaml
 env:
@@ -136,7 +136,7 @@ To mount this release on a plain Ubuntu 24.04 system:
 
 1. Copy the release directory to the target system
 2. Ensure ROS1 and ROS2 are installed and running
-3. Configure the dataflow.yml file
+3. Configure the dataflow.image.yml file
 4. Run the dataflow script
 
 ## Scripts Included
@@ -169,5 +169,5 @@ echo ""
 echo "To test on Ubuntu 24.04:"
 echo "1. Extract the tarball"
 echo "2. Ensure ROS1 and ROS2 are running"
-echo "3. Configure dataflow.yml"
+echo "3. Configure dataflow.image.yml"
 echo "4. Run: ./run.sh"
