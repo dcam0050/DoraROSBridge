@@ -146,7 +146,7 @@ where
 
                 fn init_ros2_context() -> eyre::Result<Box<Ros2Context>> {
                     Ok(Box::new(Ros2Context{
-                        context: ros2_client::Context::new()?,
+                        context: dora_ros2_bridge::create_ros2_context()?,
                         executor: std::sync::Arc::new(futures::executor::ThreadPool::new()?),
                     }))
                 }

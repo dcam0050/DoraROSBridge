@@ -121,7 +121,7 @@ fn main() -> eyre::Result<()> {
 }
 
 fn init_ros_node() -> eyre::Result<ros2_client::Node> {
-    let ros_context = ros2_client::Context::new().unwrap();
+    let ros_context = dora_ros2_bridge::create_ros2_context().unwrap();
 
     ros_context
         .new_node(

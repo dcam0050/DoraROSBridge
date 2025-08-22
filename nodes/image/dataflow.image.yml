@@ -1,7 +1,7 @@
 nodes:
   - id: ros1-image-source
     build: cargo build -p ros1-image-source
-    path: target/debug/ros1-image-source
+    path: target-ros1/debug/ros1-image-source
     inputs:
       tick: dora/timer/millis/10
     env:
@@ -19,7 +19,7 @@ nodes:
 
   - id: ros2-image-sink
     build: cargo build -p ros2-image-sink
-    path: target/debug/ros2-image-sink
+    path: target-ros2/debug/ros2-image-sink
     inputs:
       image: ros1-image-source/image
     env:

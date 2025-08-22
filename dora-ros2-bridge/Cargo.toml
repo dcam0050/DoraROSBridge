@@ -13,7 +13,7 @@ links = "dora-ros2-bridge"
 default = ["generate-messages"]
 generate-messages = ["dep:dora-ros2-bridge-msg-gen", "dep:rust-format"]
 # enables examples that depend on a sourced ROS2 installation
-ros2-examples = ["dep:eyre", "tokio", "dora-daemon"]
+ros2-examples = ["tokio", "dora-daemon"]
 
 [dependencies]
 array-init = "2.1.0"
@@ -23,7 +23,7 @@ serde-big-array = "0.5.1"
 widestring = "1.0.2"
 ros2-client = "0.8.0"
 rustdds = "0.11.0"
-eyre = { version = "0.6.8", optional = true }
+eyre = "0.6.8"
 tokio = { version = "1.29.1", features = ["full"], optional = true }
 dora-daemon = { version = "0.3.0", optional = true }
 tracing = "0.1.37"

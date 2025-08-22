@@ -1,7 +1,7 @@
 nodes:
   - id: ros2-tts-source
     build: cargo build -p ros2-tts-source
-    path: target/debug/ros2-tts-source
+    path: target-ros2/debug/ros2-tts-source
     inputs:
       tick: dora/timer/millis/100
     env:
@@ -14,7 +14,7 @@ nodes:
 
   - id: ros1-tts-sink
     build: cargo build -p ros1-tts-sink
-    path: target/debug/ros1-tts-sink
+    path: target-ros1/debug/ros1-tts-sink
     inputs:
       text: ros2-tts-source/text
     env:

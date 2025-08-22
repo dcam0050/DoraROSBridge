@@ -6,32 +6,33 @@ vars:
   PYTHON_HELPERS_DIR: './python_helpers'
 
 tasks:
-  # Setup & Build Tasks
+  # Setup & Container Management
   setup:
-    desc: Initial setup
+    desc: Initial setup and environment preparation
     cmds:
       - '{{.BUILD_SCRIPTS_DIR}}/setup.sh'
 
-  containers:create:
-    desc: Create permanent build containers
+  build:containers:
+    desc: Build/rebuild containers
     cmds:
-      - '{{.BUILD_SCRIPTS_DIR}}/manage-containers.sh create'
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        echo "🔨 Building/rebuilding permanent build containers..." && 
+        docker rm -f dora-ros1-builder dora-ros2-builder 2>/dev/null || true &&
+        docker rmi dora-ros1-builder dora-ros2-builder 2>/dev/null || true &&
+        {{.BUILD_SCRIPTS_DIR}}/manage-containers.sh create'
 
   containers:status:
     desc: Show container status
     cmds:
       - '{{.BUILD_SCRIPTS_DIR}}/manage-containers.sh status'
 
-  containers:cleanup:
-    desc: Clean up containers
+  clean:containers:
+    desc: Clean containers and cache
     cmds:
       - '{{.BUILD_SCRIPTS_DIR}}/manage-containers.sh cleanup'
 
-  containers:x11:
-    desc: Enable X11 access for containers
-    cmds:
-      - '{{.BUILD_SCRIPTS_DIR}}/manage-containers.sh x11'
-
+  # Build Tasks (for development/debugging)
   build:
     desc: Build all components
     cmds:
@@ -61,65 +62,154 @@ tasks:
       - '{{.BUILD_SCRIPTS_DIR}}/build-custom-msgs.sh'
       - '{{.BUILD_SCRIPTS_DIR}}/build-ros.sh ros2 custom-message-test'
 
-  # Testing Tasks
-  test:setup:
-    desc: Test environment setup
+  # Run Tasks (run only - build separately if needed)
+  run:vision:
+    desc: Run image pipeline
     cmds:
       - |
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
         check_dora && check_ros2 && check_ros1 && check_rqt_image_view && 
-        check_node_binaries ros1-image-source ros2-image-sink && 
-        echo "✅ All tests passed! You are ready to run the pipeline." && 
-        echo "Next steps:" && 
-        echo "  task start:image  # Run image pipeline" && 
-        echo "  task start:tts    # Run TTS system" && 
-        echo "  task start        # Run complete system"'
+        echo "🚀 Starting image pipeline..." && 
+        start_dora_dataflow {{.NODES_DIR}}/image/dataflow.image.yml "image pipeline"'
 
-  test:vision:
-    desc: Test vision components
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && check_ros2 && check_ros1 && check_rqt_image_view && 
-        task build:vision && 
-        echo "✅ Vision components built successfully!" && 
-        echo "Next steps:" && 
-        echo "  task start:image  # Run image pipeline" && 
-        echo "  task start:with-viewer  # Run with image viewer"'
-
-  test:tts:
-    desc: Test TTS components
+  run:vision:viewer:
+    desc: Run image pipeline with viewer inside ROS2 Docker container
     cmds:
       - |
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
         check_dora && check_ros2 && check_ros1 && 
-        task build:tts && 
-        echo "✅ TTS components built successfully!" && 
-        echo "Next steps:" && 
-        echo "  task start:tts  # Run TTS system"'
+        echo "🚀 Starting image pipeline with viewer inside ROS2 Docker..." && 
+        echo "Starting ROS2 image viewer in background..." && 
+        {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh background &
+        VIEWER_PID=$! && 
+        sleep 5 && 
+        echo "✅ Viewer started in container. Check for rqt_image_view window." &&
+        echo "If you do not see the window, try looking behind other windows or check different workspaces" &&
+        echo "Starting Dora image dataflow..." && 
+        dora run {{.NODES_DIR}}/image/dataflow.image.yml'
 
-  test:audio:
-    desc: Test audio system
+  run:vision:viewer:host:
+    desc: Run image pipeline with host viewer
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_dora && check_ros2 && check_ros1 && check_rqt_image_view && 
+        echo "🚀 Starting image pipeline with viewer on host..." && 
+        echo "Starting rqt_image_view on host..." && 
+        ros2 run rqt_image_view rqt_image_view /camera/image_raw &
+        sleep 2 && 
+        start_dora_dataflow {{.NODES_DIR}}/image/dataflow.image.yml "image pipeline with host viewer"'
+
+  deploy:viewer:
+    desc: Deploy ROS2 image viewer (auto-detects GPU)
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_ros2 && 
+        {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh standalone'
+
+  test:x11:
+    desc: Basic X11 connectivity test
+    cmds:
+      - '{{.BUILD_SCRIPTS_DIR}}/test-x11.sh'
+
+  test:gpu:
+    desc: GPU configuration diagnostics
+    cmds:
+      - '{{.BUILD_SCRIPTS_DIR}}/check-gpu.sh'
+
+  monitor:topics:
+    desc: Monitor ROS2 topics (no GUI)
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_ros2 && 
+        echo "📡 Monitoring ROS2 topics..." && 
+        echo "ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}" &&
+        echo "Available topics:" &&
+        docker exec -e ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42} dora-ros2-builder bash -c "source /opt/ros/rolling/setup.bash && source /opt/ros2_ws/install/setup.bash && ros2 topic list" &&
+        echo "" &&
+        echo "Monitoring /camera/image_raw (press Ctrl+C to stop):" &&
+        docker exec -e ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42} dora-ros2-builder bash -c "source /opt/ros/rolling/setup.bash && source /opt/ros2_ws/install/setup.bash && ros2 topic echo /camera/image_raw"'
+
+  test:gui:
+    desc: Test different ROS GUI applications
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_ros2 && 
+        echo "🎨 Testing ROS GUI applications..." && 
+        echo "" &&
+        echo "Choose which GUI to test:" &&
+        echo "1) rqt_graph - Shows ROS node graph" &&
+        echo "2) rqt_image_view - Image viewer" &&
+        echo "3) rviz2 - 3D visualization" &&
+        echo "" &&
+        read -p "Enter choice (1-3): " choice &&
+        case $choice in
+          1) echo "Testing rqt_graph..." && {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh standalone rqt_graph ;;
+          2) echo "Testing rqt_image_view..." && {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh standalone ;;
+          3) echo "Testing rviz2..." && {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh standalone rviz2 ;;
+          *) echo "Invalid choice" ;;
+        esac'
+
+  run:tts:
+    desc: Run TTS system
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_dora && check_ros2 && check_ros1 && 
+        echo "🚀 Starting TTS system..." && 
+        echo "Starting remote TTS bridge..." && 
+        ./python_helpers/deploy_and_run_remote.sh &
+        TTS_PID=$! && 
+        sleep 3 && 
+        echo "Starting Dora TTS dataflow..." && 
+        dora run {{.NODES_DIR}}/tts/dataflow.tts.yml &
+        DORA_PID=$! && 
+        echo "TTS system started successfully!" && 
+        echo "Remote TTS bridge PID: $TTS_PID" && 
+        echo "Dora dataflow PID: $DORA_PID" && 
+        echo "Press Ctrl+C to stop both processes" && 
+        trap "echo \"Stopping TTS system...\" && kill $DORA_PID 2>/dev/null || true && kill $TTS_PID 2>/dev/null || true && exit 0" SIGINT SIGTERM && wait'
+
+  run:audio:
+    desc: Run audio system
     cmds:
       - |
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
         check_dora && check_ros2 && check_gstreamer && 
-        task build:audio && test_port 5004 udp && 
+        echo "🚀 Starting audio system..." && 
+        test_port 5004 udp && 
         start_dora_dataflow {{.NODES_DIR}}/audio/dataflow.audio.yml "audio streaming system"'
 
-  test:custom-msgs:
-    desc: Test custom message compilation
+  run:custom:
+    desc: Run custom message test
     cmds:
       - |
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_ros2 && echo "🧪 Testing custom message compilation..." && 
-        task build:custom && 
-        echo "✅ Custom messages compiled successfully!" && 
-        echo "🎯 Next steps:" && 
-        echo "  task start:custom  # Start custom message test" && 
-        echo "  ros2 topic list       # List available topics" && 
-        echo "  ros2 topic echo /custom/audio  # Monitor custom audio topic"'
+        check_dora && check_ros2 && 
+        echo "🚀 Starting custom message test..." && 
+        AMENT_PREFIX_PATH="$(pwd)/custom_msgs/install:$AMENT_PREFIX_PATH" 
+        start_dora_dataflow {{.NODES_DIR}}/custom/dataflow.custom.yml "custom message test system"'
 
+  run:all:
+    desc: Run complete system
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_dora && check_ros2 && check_ros1 && 
+        echo "🚀 Starting complete system..." && 
+        TTS_PID=$(deploy_tts_bridge) && sleep 2 && 
+        echo "Starting image dataflow..." && 
+        dora run {{.NODES_DIR}}/image/dataflow.image.yml & IMAGE_PID=$! &&
+        echo "Complete system started successfully!" && 
+        echo "Remote TTS bridge PID: $TTS_PID" && 
+        echo "Image dataflow PID: $IMAGE_PID" && 
+        echo "Press Ctrl+C to stop all processes" && 
+        trap "cleanup && exit 0" SIGINT SIGTERM && wait'
+
+  # Testing Tasks (for validation)
   test:release:
     desc: Test release package with Docker
     cmds:
@@ -175,231 +265,9 @@ tasks:
         echo "✅ Telegraf OpenTelemetry endpoint is accessible at localhost:4317 (gRPC)" && 
         echo "" && 
         echo "🎯 Next steps:" && 
-        echo "1. Start your dora dataflow: task start" && 
+        echo "1. Start your dora dataflow: task run:all" && 
         echo "2. Open Grafana: http://localhost:3000 (admin/admin)" && 
         echo "3. View the Dora ROS Bridge Metrics dashboard"'
-
-  # Starting Systems Tasks
-  start:
-    desc: Start complete system
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && echo "Starting complete ROS bridge system..." && 
-        TTS_PID=$(deploy_tts_bridge) && sleep 2 && 
-        echo "Starting image dataflow..." && 
-        dora run {{.NODES_DIR}}/image/dataflow.image.yml & IMAGE_PID=$! && 
-        echo "Complete system started successfully!" && 
-        echo "Remote TTS bridge PID: $TTS_PID" && 
-        echo "Image dataflow PID: $IMAGE_PID" && 
-        echo "Press Ctrl+C to stop all processes" && 
-        trap "cleanup && exit 0" SIGINT SIGTERM && wait'
-
-  start:image:
-    desc: Start image pipeline only
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && start_dora_dataflow {{.NODES_DIR}}/image/dataflow.image.yml "image pipeline"'
-
-  start:tts:
-    desc: Start TTS system only
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && echo "Starting TTS system..." && 
-        TTS_PID=$(deploy_tts_bridge) && sleep 2 && 
-        echo "Starting Dora TTS dataflow..." && 
-        dora run {{.NODES_DIR}}/tts/dataflow.tts.yml & DORA_PID=$! && 
-        echo "TTS system started successfully!" && 
-        echo "Remote TTS bridge PID: $TTS_PID" && 
-        echo "Dora dataflow PID: $DORA_PID" && 
-        echo "Press Ctrl+C to stop both processes" && 
-        trap "cleanup && exit 0" SIGINT SIGTERM && wait'
-
-  start:audio:
-    desc: Start audio system only
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh &&
-        check_dora && start_dora_dataflow {{.NODES_DIR}}/audio/dataflow.audio.yml "audio streaming system"'
-
-  start:audio-player-node:
-    desc: Start ROS2 audio player node directly
-    cmds:
-      - |
-        docker exec -it -u $(id -u):$(id -g) -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp -e ROS_DOMAIN_ID=42 -e ROS_LOCALHOST_ONLY=0 dora-ros2-builder bash -c "
-          source /opt/ros/rolling/setup.bash &&
-          source /opt/ros2_ws/install/setup.bash && bash"'
-
-  start:custom:
-    desc: Start custom message test
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && AMENT_PREFIX_PATH="$(pwd)/custom_msgs/install:$AMENT_PREFIX_PATH" 
-        start_dora_dataflow {{.NODES_DIR}}/custom/dataflow.custom.yml "custom message test system"'
-
-  start:with-viewer:
-    desc: Start with image viewer
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_dora && check_ros2 && echo "Starting image pipeline with viewer..." && 
-        echo "Starting rqt_image_view..." && 
-        ros2 run rqt_image_view rqt_image_view /camera/image_raw & VIEWER_PID=$! && sleep 2 && 
-        echo "Starting dora dataflow..." && 
-        dora run {{.NODES_DIR}}/image/dataflow.image.yml & DORA_PID=$! && 
-        echo "System started! Dora PID: $DORA_PID, Viewer PID: $VIEWER_PID" && 
-        echo "Press Ctrl+C to stop both processes" && 
-        trap "cleanup && kill $VIEWER_PID 2>/dev/null || true && exit 0" SIGINT SIGTERM && wait'
-
-  # Monitoring Tasks
-  logs:
-    desc: View all logs
-    cmds:
-      - dora logs
-
-  logs:source:
-    desc: View source logs
-    cmds:
-      - dora logs ros1-image-source
-
-  logs:sink:
-    desc: View sink logs
-    cmds:
-      - dora logs ros2-image-sink
-
-  logs:tts-source:
-    desc: View TTS source logs
-    cmds:
-      - dora logs ros2-tts-source
-
-  logs:tts-sink:
-    desc: View TTS sink logs
-    cmds:
-      - dora logs ros1-tts-sink
-
-  logs:audio-receiver:
-    desc: View audio receiver logs
-    cmds:
-      - dora logs gstreamer-audio-receiver
-
-  logs:audio-publisher:
-    desc: View audio publisher logs
-    cmds:
-      - dora logs ros2-audio-publisher
-
-  logs:audio-sink:
-    desc: View audio sink logs
-    cmds:
-      - dora logs dora-audio-sink
-
-  stop:
-    desc: Stop all systems
-    cmds:
-      - dora stop
-
-  clean:
-    desc: Clean all build artifacts and temporary files
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        echo "🧹 Cleaning build artifacts..." && 
-        cargo clean && 
-        rm -rf target-ros1 target-ros2 && 
-        echo "✅ Rust build artifacts cleaned"'
-      - |
-        bash -c 'echo "🧹 Cleaning custom messages build artifacts..." && 
-        rm -rf custom_msgs/build custom_msgs/install && 
-        echo "✅ Custom messages build artifacts cleaned"'
-      - |
-        bash -c 'echo "🧹 Cleaning Dora output artifacts..." && 
-        rm -rf out/* && 
-        echo "✅ Dora output artifacts cleaned"'
-      - |
-        bash -c 'echo "🧹 Cleaning release artifacts..." && 
-        rm -rf release ros-bridge-release.tar.gz && 
-        echo "✅ Release artifacts cleaned"'
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_docker && echo "🧹 Cleaning Docker containers..." && 
-        docker rm -f dora-ros1-builder dora-ros2-builder 2>/dev/null || true && 
-        docker rmi dora-ros1-builder dora-ros2-builder 2>/dev/null || true && 
-        echo "✅ Docker containers cleaned"'
-      - |
-        bash -c 'echo "🧹 Cleaning test files..." && 
-        rm -f test_ros2_docker_communication.sh simple_ros2_docker_test.sh && 
-        rm -f manual_ros2_test.md ROS2_DOCKER_COMMUNICATION_RESULTS.md && 
-        echo "✅ Test files cleaned"'
-      - |
-        bash -c 'echo "🧹 Cleaning temporary files..." && 
-        find . -name "*.tmp" -delete && 
-        find . -name "*.log" -delete && 
-        find . -name "*.pid" -delete && 
-        echo "✅ Temporary files cleaned"'
-      - |
-        bash -c 'echo "" && 
-        echo "🎉 All build artifacts and temporary files cleaned successfully!" && 
-        echo "📁 Cleaned directories:" && 
-        echo "  - target/ (Rust build artifacts)" && 
-        echo "  - target-ros1/ (ROS1 build artifacts)" && 
-        echo "  - target-ros2/ (ROS2 build artifacts)" && 
-        echo "  - custom_msgs/build/ (Custom messages build)" && 
-        echo "  - custom_msgs/install/ (Custom messages install)" && 
-        echo "  - out/ (Dora output artifacts)" && 
-        echo "  - release/ (Release artifacts)" && 
-        echo "  - Docker containers (dora-ros1-builder, dora-ros2-builder)" && 
-        echo "  - Test files (ROS2 communication tests)" && 
-        echo "  - Temporary files (*.tmp, *.log, *.pid)"'
-
-  clean:rust:
-    desc: Clean only Rust build artifacts
-    cmds:
-      - |
-        bash -c 'echo "🧹 Cleaning Rust build artifacts..." && 
-        cargo clean && 
-        rm -rf target-ros1 target-ros2 && 
-        echo "✅ Rust build artifacts cleaned"'
-
-  clean:custom-msgs:
-    desc: Clean only custom messages build artifacts
-    cmds:
-      - |
-        bash -c 'echo "🧹 Cleaning custom messages build artifacts..." && 
-        rm -rf custom_msgs/build custom_msgs/install && 
-        echo "✅ Custom messages build artifacts cleaned"'
-
-  clean:dora:
-    desc: Clean only Dora output artifacts
-    cmds:
-      - |
-        bash -c 'echo "🧹 Cleaning Dora output artifacts..." && 
-        rm -rf out/* && 
-        echo "✅ Dora output artifacts cleaned"'
-
-  clean:docker:
-    desc: Clean only Docker containers and images
-    cmds:
-      - |
-        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
-        check_docker && echo "🧹 Cleaning Docker containers..." && 
-        docker rm -f dora-ros1-builder dora-ros2-builder 2>/dev/null || true && 
-        docker rmi dora-ros1-builder dora-ros2-builder 2>/dev/null || true && 
-        echo "✅ Docker containers cleaned"'
-
-  # Development Tasks
-  dev:
-    desc: Build and start complete system
-    deps: [build]
-    cmds:
-      - task: start
-
-  dev:watch:
-    desc: Build and start development mode
-    deps: [build]
-    cmds:
-      - task: start
 
   # Metrics Tasks
   metrics:start:
@@ -408,52 +276,55 @@ tasks:
       - |
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
         check_docker && check_docker_compose && 
-        echo "🚀 Starting dora metrics monitoring services..." && 
+        echo "Starting metrics services..." && 
         docker compose -f docker-compose.metrics.yml up -d && 
-        echo "✅ Metrics services started successfully!" && 
-        echo "" && 
-        echo "📊 Services available at:" && 
-        echo "  - Grafana Dashboard: http://localhost:3000 (admin/admin)" && 
-        echo "  - InfluxDB: http://localhost:8086" && 
-        echo "  - Telegraf (metrics collector): localhost:4317" && 
-        echo "" && 
-        echo "🔍 To view metrics:" && 
-        echo "  1. Open Grafana at http://localhost:3000" && 
-        echo "  2. Login with admin/admin" && 
-        echo "  3. The Dora ROS Bridge Metrics dashboard should be available" && 
-        echo "" && 
-        echo "📈 To collect metrics from your dora dataflow:" && 
-        echo "  1. Start your dora dataflow: task start" && 
-        echo "  2. Metrics will be automatically collected and displayed in Grafana" && 
-        echo "" && 
-        echo "🛑 To stop metrics services: task metrics:stop"'
+        echo "✅ Metrics services started" && 
+        echo "Grafana: http://localhost:3000 (admin/admin)" && 
+        echo "InfluxDB: http://localhost:8086" && 
+        echo "Telegraf: localhost:4317 (gRPC)"'
 
   metrics:stop:
     desc: Stop metrics services
     cmds:
-      - docker compose -f docker-compose.metrics.yml down
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_docker && check_docker_compose && 
+        echo "Stopping metrics services..." && 
+        docker compose -f docker-compose.metrics.yml down && 
+        echo "✅ Metrics services stopped"'
 
-  metrics:cleanup:
-    desc: Cleanup metrics data
+  metrics:status:
+    desc: Show metrics services status
     cmds:
-      - docker compose -f docker-compose.metrics.yml down -v
-      - docker system prune -f
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_docker && check_docker_compose && 
+        echo "Metrics services status:" && 
+        docker compose -f docker-compose.metrics.yml ps'
 
-  metrics:test:
-    desc: Test metrics setup
+  # Cleanup Tasks
+  clean:
+    desc: Clean all build artifacts
+    deps: [clean:rust, clean:custom, clean:containers]
     cmds:
-      - task: test:metrics
+      - |
+        echo "✅ All clean tasks completed"
 
-  # Deployment Tasks
-  tts:deploy:
-    desc: Deploy TTS to remote robot
+  clean:rust:
+    desc: Clean Rust build artifacts only
     cmds:
-      - '{{.PYTHON_HELPERS_DIR}}/deploy_and_run_remote.sh'
+      - |
+        echo "Cleaning Rust build artifacts..." && 
+        rm -rf target target-ros1 target-ros2 && 
+        echo "✅ Rust build artifacts cleaned"
 
-  audio:deploy:
-    desc: Deploy audio sender to remote robot
+  clean:custom:
+    desc: Clean custom messages build artifacts
     cmds:
-      - '{{.PYTHON_HELPERS_DIR}}/deploy_and_run_audio_sender.sh'
+      - |
+        echo "Cleaning custom messages..." && 
+        rm -rf custom_msgs/build custom_msgs/install && 
+        echo "✅ Custom messages cleaned"
 
   # Release Tasks
   create-release:
@@ -461,68 +332,50 @@ tasks:
     cmds:
       - '{{.BUILD_SCRIPTS_DIR}}/create-release.sh'
 
-  # Help Task
+  # Help
   help:
-    desc: Show available commands
+    desc: Show available tasks
     cmds:
       - |
-        cat << 'EOF'
-        Available commands:
-          Setup & Build:
-            task setup          # Initial setup
-            task build          # Build all components
-            task build:vision   # Build vision components only
-            task build:tts      # Build TTS components only
-            task build:audio    # Build audio components only
-            task build:custom   # Build custom messages
-
-          Testing:
-            task test:setup     # Test environment setup
-            task test:vision    # Test vision components
-            task test:tts       # Test TTS components
-            task test:audio     # Test audio system
-            task test:metrics   # Test metrics system
-            task test:custom-msgs # Test custom messages
-            task test:release   # Test release package with Docker
-
-          Starting Systems:
-            task start          # Start complete system
-            task start:image    # Start image pipeline only
-            task start:tts      # Start TTS system only
-            task start:audio    # Start audio system only
-            task start:audio-player-node    # Start audio player node directly
-            task start:audio-sink    # Start dora-audio-sink with playback
-            task start:custom   # Start custom message test
-            task start:with-viewer # Start with image viewer
-
-          Monitoring:
-            task logs           # View all logs
-            task logs:source    # View source logs
-            task logs:sink      # View sink logs
-            task stop           # Stop all systems
-
-          Metrics:
-            task metrics:start  # Start metrics services
-            task metrics:stop   # Stop metrics services
-            task metrics:test   # Test metrics setup
-
-          Deployment:
-            task tts:deploy     # Deploy TTS to remote robot
-            task audio:deploy   # Deploy audio sender to remote robot
-
-          Release:
-            task create-release # Create release package
-
-          Development:
-            task dev            # Build and start complete system
-            task clean          # Clean all build artifacts
-            task clean:rust     # Clean only Rust artifacts
-            task clean:custom-msgs # Clean only custom messages
-            task clean:dora     # Clean only Dora artifacts
-            task clean:docker   # Clean only Docker containers
-        EOF
-
-  # Default task
-  default:
-    cmds:
-      - task: help
+        echo "🚀 ROS Bridge Tasks" && 
+        echo "" && 
+        echo "🔨 Build & Setup:" && 
+        echo "  task setup             # Initial setup" && 
+        echo "  task build:containers  # Build containers" && 
+        echo "  task build             # Build all components" && 
+        echo "" && 
+        echo "🚀 Main Tasks:" && 
+        echo "  task run:all           # Complete system" && 
+        echo "  task run:vision        # Image pipeline" && 
+        echo "  task run:vision:viewer # Image pipeline + viewer" && 
+        echo "  task run:tts           # TTS system" && 
+        echo "  task run:audio         # Audio system" && 
+        echo "  task run:custom        # Custom messages" && 
+        echo "" && 
+        echo "📺 Viewer & Debug:" && 
+        echo "  task deploy:viewer     # ROS2 viewer" && 
+        echo "  task test:gui          # Test GUI apps" && 
+        echo "  task monitor:topics    # Monitor topics" && 
+        echo "  task test:gpu          # GPU diagnostics" && 
+        echo "" && 
+        echo "📊 Metrics:" && 
+        echo "  task metrics:start     # Start metrics services" && 
+        echo "  task metrics:stop      # Stop metrics services" && 
+        echo "  task metrics:status    # Show metrics status" && 
+        echo "  task test:metrics      # Test metrics setup" && 
+        echo "" && 
+        echo "🧹 Cleanup:" && 
+        echo "  task clean             # Clean all build artifacts" && 
+        echo "  task clean:rust        # Clean Rust artifacts only" && 
+        echo "  task clean:custom      # Clean custom messages" && 
+        echo "  task clean:containers # Clean up containers and cache" && 
+        echo "" && 
+        echo "📦 Release:" && 
+        echo "  task create-release    # Create release package" && 
+        echo "  task test:release      # Test release package" && 
+        echo "" && 
+        echo "💡 Quick Start:" && 
+        echo "  1. task setup" && 
+        echo "  2. task run:vision:viewer" && 
+        echo "" && 
+        echo "📖 For more details, see README.md"

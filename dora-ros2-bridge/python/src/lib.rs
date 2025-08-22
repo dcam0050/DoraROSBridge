@@ -100,7 +100,7 @@ impl Ros2Context {
         }
 
         Ok(Self {
-            context: ros2_client::Context::new()?,
+            context: dora_ros2_bridge::create_ros2_context()?,
             messages: Arc::new(messages),
         })
     }

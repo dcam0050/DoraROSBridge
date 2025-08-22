@@ -12,7 +12,7 @@ fn main() -> Result<()> {
     println!("Starting custom message test node");
 
     // Initialize ROS2 node
-    let ros_context = ros2_client::Context::new()?;
+    let ros_context = dora_ros2_bridge::create_ros2_context()?;
     let mut ros_node = ros_context
         .new_node(
             ros2_client::NodeName::new("/dora", "custom_message_test")?,

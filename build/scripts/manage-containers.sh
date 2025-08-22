@@ -54,9 +54,7 @@ create_ros2_container() {
         -e AMENT_PREFIX_PATH=/opt/ros/rolling:/workspace/custom_msgs/install \
         -e ROS_DISTRO=rolling \
         -e ROS_VERSION=2 \
-        -e RMW_IMPLEMENTATION=rmw_cyclonedds_cpp \
         -e ROS_DOMAIN_ID=42 \
-        -e ROS_LOCALHOST_ONLY=0 \
         -v /tmp/.X11-unix:/tmp/.X11-unix:rw \
         -v /dev/snd:/dev/snd \
         --device /dev/snd \
@@ -120,7 +118,10 @@ cleanup_containers() {
     docker rm -f $CONTAINER_ROS2 2>/dev/null || true
     docker rmi dora-ros1-builder 2>/dev/null || true
     docker rmi dora-ros2-builder 2>/dev/null || true
-    log "✅ Containers cleaned up"
+    
+    log "Cleaning container cache..."
+    docker system prune -f --volumes
+    log "✅ Containers and cache cleaned up"
 }
 
 # Function to show container status

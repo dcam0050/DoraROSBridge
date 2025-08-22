@@ -1,7 +1,7 @@
 nodes:
   - id: gstreamer-audio-receiver
     build: cargo build -p gstreamer-audio-receiver
-    path: target/debug/gstreamer-audio-receiver
+    path: target-ros2/debug/gstreamer-audio-receiver
     inputs:
       tick: dora/timer/millis/10
     env:
@@ -28,7 +28,7 @@ nodes:
 
   - id: ros2-audio-publisher
     build: cargo build -p ros2-audio-publisher
-    path: target/debug/ros2-audio-publisher
+    path: target-ros2/debug/ros2-audio-publisher
     inputs:
       audio: gstreamer-audio-receiver/audio
     env:
@@ -39,7 +39,7 @@ nodes:
 
   - id: dora-audio-sink
     build: cargo build -p dora-audio-sink
-    path: target/debug/dora-audio-sink
+    path: target-ros2/debug/dora-audio-sink
     inputs:
       audio: gstreamer-audio-receiver/audio
     env:

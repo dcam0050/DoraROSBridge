@@ -9,16 +9,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
     gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
     libasound2-dev libpulse-dev \
+    ros-rolling-rqt-image-view ros-rolling-rqt-graph ros-rolling-rviz2 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install additional dependencies for audio and GUI, plus CycloneDDS
+# Install additional dependencies for audio and GUI
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git wget python3-pip python3-colcon-common-extensions \
     portaudio19-dev libespeak-dev espeak \
     libx11-dev libxext-dev libxrender-dev libxrandr-dev \
     libxtst-dev libxi-dev libxfixes-dev libxcursor-dev \
     libxcomposite-dev libxdamage-dev libxss-dev \
-    ros-rolling-rmw-cyclonedds-cpp \
     && rm -rf /var/lib/apt/lists/*
 
 # Install audio_common from source using ROS2 workspace
@@ -44,16 +44,13 @@ ENV PATH="/home/ubuntu/.cargo/bin:/home/ubuntu/.rustup/toolchains/stable-x86_64-
 # Create workspace dir and set ownership
 WORKDIR /workspace
 
-# Source ROS2 environment and set CycloneDDS configuration
+# Source ROS2 environment
 RUN echo "source /opt/ros/rolling/setup.bash" >> ~/.bashrc
 ENV PATH="/opt/ros/rolling/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/ros/rolling/lib"
 ENV PYTHONPATH="/opt/ros/rolling/lib/python3/dist-packages"
 ENV ROS_DISTRO="rolling"
 ENV ROS_VERSION="2"
-ENV RMW_IMPLEMENTATION="rmw_cyclonedds_cpp"
-ENV ROS_DOMAIN_ID="42"
-ENV ROS_LOCALHOST_ONLY="0"
 
 # Default command - just keep container running
 CMD ["tail", "-f", "/dev/null"]
