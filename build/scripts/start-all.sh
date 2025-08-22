@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# TTS Startup Script
-# This script starts both the TTS bridge on the remote robot and the local Dora dataflow
+# Combined Startup Script
+# This script starts both the image pipeline and TTS system
 
 set -e
 
@@ -51,7 +51,7 @@ trap cleanup SIGINT SIGTERM
 
 # Main execution
 main() {
-    log "Starting TTS system..."
+    log "Starting complete ROS bridge system..."
     
     # Start the TTS bridge on remote robot in background
     log "Deploying TTS bridge to remote robot..."
@@ -69,15 +69,15 @@ main() {
     
     log "TTS bridge deployed successfully (PID: $TTS_DEPLOY_PID)"
     
-    # Start the Dora dataflow
-    log "Starting Dora TTS dataflow..."
-    dora run ./dataflow.tts.yml &
-    DORA_PID=$!
+    # Start the image dataflow
+    log "Starting image dataflow..."
+    dora run ./nodes/image/dataflow.image.yml &
+    IMAGE_PID=$!
     
-    log "TTS system started successfully!"
+    log "Complete system started successfully!"
     log "Remote TTS bridge PID: $TTS_DEPLOY_PID"
-    log "Dora dataflow PID: $DORA_PID"
-    log "Press Ctrl+C to stop both processes"
+    log "Image dataflow PID: $IMAGE_PID"
+    log "Press Ctrl+C to stop all processes"
     
     # Wait for either process to exit
     wait
@@ -87,10 +87,10 @@ main() {
 if [[ "$1" == "-h" ]] || [[ "$1" == "--help" ]]; then
     echo "Usage: $0"
     echo ""
-    echo "This script starts the complete TTS system:"
+    echo "This script starts the complete ROS bridge system:"
     echo "1. Deploys and starts the TTS bridge on the remote robot"
-    echo "2. Starts the local Dora TTS dataflow"
-    echo "3. Runs both processes in parallel"
+    echo "2. Starts the local image dataflow"
+    echo "3. Runs both components in parallel"
     echo "4. Handles cleanup when stopped with Ctrl+C"
     echo ""
     echo "Prerequisites:"

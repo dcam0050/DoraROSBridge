@@ -85,7 +85,7 @@ start_audio_dataflow() {
     log "Press Ctrl+C to stop"
     
     # Start the dataflow in background
-    dora run ./dataflow.audio.yml &
+    dora run ./nodes/audio/dataflow.audio.yml &
     local dora_pid=$!
     
     # Wait a moment for startup

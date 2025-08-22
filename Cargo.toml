@@ -1,13 +1,13 @@
 [workspace]
 members = [
-    "ros1-image-source",
-    "ros2-image-sink",
-    "ros1-tts-sink",
-    "ros2-tts-source",
-    "gstreamer-audio-receiver",
-    "ros2-audio-publisher",
-    "dora-audio-sink",
-    "common-audio-playback"
+    "nodes/image/ros1-image-source",
+    "nodes/image/ros2-image-sink",
+    "nodes/tts/ros1-tts-sink",
+    "nodes/tts/ros2-tts-source",
+    "nodes/audio/gstreamer-audio-receiver",
+    "nodes/audio/ros2-audio-publisher",
+    "nodes/audio/dora-audio-sink",
+    "nodes/audio/common-audio-playback"
 ]
 resolver = "2"
 
