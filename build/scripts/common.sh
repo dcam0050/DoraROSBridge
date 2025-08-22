@@ -120,11 +120,27 @@ check_rqt_image_view() {
 check_node_binaries() {
     local nodes=("$@")
     for node in "${nodes[@]}"; do
-        if [ ! -f "target/debug/$node" ]; then
-            error "$node not built. Run: task build"
-            exit 1
+        # Check in separate target directories first, then fallback to main target
+        if [[ "$node" == ros1-* ]]; then
+            if [ ! -f "target-ros1/debug/$node" ]; then
+                error "$node not built. Run: task build:vision"
+                exit 1
+            fi
+            log "$node is built (in target-ros1)"
+        elif [[ "$node" == ros2-* ]]; then
+            if [ ! -f "target-ros2/debug/$node" ]; then
+                error "$node not built. Run: task build:vision"
+                exit 1
+            fi
+            log "$node is built (in target-ros2)"
+        else
+            # Fallback to main target directory
+            if [ ! -f "target/debug/$node" ]; then
+                error "$node not built. Run: task build"
+                exit 1
+            fi
+            log "$node is built (in target)"
         fi
-        log "$node is built"
     done
 }
 
