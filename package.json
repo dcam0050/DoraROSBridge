@@ -33,7 +33,7 @@
     "tts:deploy": "./python_helpers/deploy_and_run_remote.sh",
     "audio:deploy": "./python_helpers/deploy_and_run_audio_sender.sh",
     "start:audio": "dora run ./dataflow.audio.yml",
-    "build:audio": "cargo build -p gstreamer-audio-receiver && cargo build -p ros2-audio-publisher",
+    "build:audio": "cargo build -p gstreamer-audio-receiver && cargo build -p ros2-audio-publisher && cargo build -p dora-audio-sink",
     "test:audio": "./scripts/test-audio.sh"
   },
   "keywords": [

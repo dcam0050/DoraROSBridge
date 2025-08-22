@@ -13,3 +13,7 @@ gstreamer-app = "0.21"
 gstreamer-rtp = "0.21"
 gstreamer-audio = "0.21"
 bytes = "1.0"
+cpal = "0.15"
+ctrlc = "3.4"
+signal-hook = "0.3"
+common-audio-playback = { path = "../common-audio-playback" }

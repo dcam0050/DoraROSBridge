@@ -11,7 +11,7 @@ The `ros1-image-source` subscribes to a ROS1 topic publishing `sensor_msgs/Image
 The `ros2-tts-source` subscribes to ROS2 text topics and forwards text to ROS1 TTS topics via the `ros1-tts-sink`.
 
 ### 3. Audio Streaming Bridge
-The `gstreamer-audio-receiver` receives audio from a robot via UDP RTP and forwards it to ROS2 via the `ros2-audio-publisher`.
+The `gstreamer-audio-receiver` receives audio from a robot via UDP RTP and forwards it to ROS2 via the `ros2-audio-publisher`. The `dora-audio-sink` provides optional audio playback and debugging capabilities.
 
 ## Quick Start
 
@@ -226,6 +226,13 @@ npm run test:audio
 │ (GStreamer      │    │ receiver             │    │ publisher           │
 │  Sender)        │    │ (UDP RTP → Dora)     │    │ (Dora → ROS2)       │
 └─────────────────┘    └──────────────────────┘    └─────────────────────┘
+                                │
+                                ▼
+                       ┌─────────────────┐
+                       │ dora-audio-sink │
+                       │ (Playback &     │
+                       │  Debug)         │
+                       └─────────────────┘
 ```
 
 ### Configuration
@@ -243,9 +250,24 @@ Edit `python_helpers/deploy_and_run_audio_sender.sh` to configure:
 - Format: S16LE (16-bit signed little-endian)
 - Protocol: RTP L16 payload over UDP
 
+### Components
+
+- **gstreamer-audio-receiver**: Receives UDP RTP audio and forwards to Dora dataflow
+- **ros2-audio-publisher**: Publishes audio data to ROS2 topics
+- **dora-audio-sink**: Optional audio playback and debugging node
+
+### Environment Variables
+
+The audio pipeline supports several environment variables:
+
+- `ENABLE_PLAYBACK`: Enable/disable audio playback in gstreamer-audio-receiver (default: true)
+- `ENABLE_DEBUG`: Enable/disable detailed debug output in dora-audio-sink (default: false)
+- `DEBUG_MAX_ENTRIES`: Maximum debug entries to keep in memory (default: 100)
+- `DEBUG_FILE`: File path for debug data export (default: audio_debug.json)
+
 ### ROS2 Topics
 
-The system publishes audio data to `/robot/audio` as `std_msgs/UInt8MultiArray` messages.
+The system publishes audio data to `/audio` as `audio_common_msgs/AudioStamped` messages.
 
 For more details, see [AUDIO_STREAMING.md](AUDIO_STREAMING.md).
 
@@ -257,6 +279,8 @@ For more details, see [AUDIO_STREAMING.md](AUDIO_STREAMING.md).
 - `ros2-sink/src/main.rs`: ROS2 image publisher
 - `gstreamer-audio-receiver/src/main.rs`: GStreamer audio receiver
 - `ros2-audio-publisher/src/main.rs`: ROS2 audio publisher
+- `dora-audio-sink/src/main.rs`: Audio playback and debugging node
+- `common-audio-playback/src/lib.rs`: Shared audio playback library
 - `run-with-viewer.sh`: Script to run pipeline with image viewer
 - `test-setup.sh`: Script to test your setup
 - `test-audio.sh`: Script to test audio streaming system

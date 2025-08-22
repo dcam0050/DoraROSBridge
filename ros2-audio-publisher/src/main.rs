@@ -83,11 +83,11 @@ fn main() -> eyre::Result<()> {
                     
                     // Calculate chunk size (samples per chunk)
                     let bytes_per_sample = match format_code {
-                        1 => 2,  // paInt16
+                        1 => 4,  // paFloat32 = 0x00000001
                         2 => 4,  // paInt32
-                        3 => 4,  // paFloat32
-                        4 => 1,  // paInt8
-                        5 => 1,  // paUInt8
+                        8 => 2,  // paInt16 = 0x00000008
+                        16 => 1, // paInt8 = 0x00000010
+                        32 => 1, // paUInt8 = 0x00000020
                         _ => 2,  // default
                     };
                                                // Calculate chunk size (samples per chunk)

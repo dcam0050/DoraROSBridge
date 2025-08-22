@@ -5,7 +5,9 @@ members = [
     "ros1-tts-sink",
     "ros2-tts-source",
     "gstreamer-audio-receiver",
-    "ros2-audio-publisher"
+    "ros2-audio-publisher",
+    "dora-audio-sink",
+    "common-audio-playback"
 ]
 resolver = "2"
 
