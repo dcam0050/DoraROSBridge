@@ -1,41 +1,40 @@
 #!/bin/bash
 
+# Setup script for ROS bridge
+# This script performs initial setup and environment checks
+
 set -e
 
-echo "Setting up ROS Bridge project..."
+# Source common utilities
+source "$(dirname "$0")/common.sh"
 
-# Check if Rust is installed
-if ! command -v cargo &> /dev/null; then
-    echo "❌ Rust is not installed. Please install Rust first:"
-    echo "   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-    exit 1
-fi
+log "Setting up ROS bridge environment..."
 
-# Check if dora-cli is installed
-if ! command -v dora &> /dev/null; then
-    echo "📦 Installing dora-cli..."
-    cargo install dora-cli
-else
-    echo "✅ dora-cli is already installed"
-fi
+# Check prerequisites
+check_dora
+check_ros2
+check_ros1
+check_docker
 
-# Check if ROS2 is available
-if ! command -v ros2 &> /dev/null; then
-    echo "⚠️  ROS2 is not found in PATH. Please source your ROS2 installation:"
-    echo "   source /opt/ros/rolling/setup.bash"
-    echo "   (or add it to your ~/.bashrc)"
-fi
+# Create permanent containers
+log "Creating permanent build containers..."
+"$(dirname "$0")/manage-containers.sh" create
 
-# Build the ROS2 part locally
-echo "🔨 Building ROS2 components..."
-cargo build -p ros2-image-sink
+# Enable X11 access for GUI applications
+log "Enabling X11 access..."
+"$(dirname "$0")/manage-containers.sh" x11
 
-echo "📦 Note: ROS1 components will be built in Docker when needed"
-echo "   Use 'npm run build:ros1' to build ROS1 components"
-
-echo "✅ Setup complete!"
-echo ""
-echo "Next steps:"
-echo "1. Configure your ROS1 environment in nodes/image/dataflow.image.yml"
-echo "2. Run: npm run test:setup"
-echo "3. Run: npm run start:with-viewer"
+log "✅ Setup completed successfully!"
+log ""
+log "Next steps:"
+log "  task test:setup     # Test your environment"
+log "  task build:vision   # Build vision components"
+log "  task build:tts      # Build TTS components"
+log "  task build:audio    # Build audio components"
+log "  task start:image    # Start image pipeline"
+log "  task start:tts      # Start TTS system"
+log "  task start          # Start complete system"
+log "  task help           # Show all available commands"
+log ""
+log "Note: Components are not built during setup to avoid timeouts."
+log "Run individual build tasks as needed."

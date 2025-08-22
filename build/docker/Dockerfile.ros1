@@ -6,11 +6,22 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake curl git ca-certificates pkg-config \
     && rm -rf /var/lib/apt/lists/*
 
-# Install rustup + stable toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Create ubuntu user with UID 1000 (same as host user)
+RUN groupadd -g 1000 ubuntu && \
+    useradd -m -u 1000 -g 1000 -s /bin/bash ubuntu && \
+    usermod -aG sudo ubuntu && \
+    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
-# Create workspace dir
+# Install rustup and latest stable Rust
+USER ubuntu
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
+    . ~/.cargo/env && \
+    rustup default stable && \
+    echo 'export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH"' >> ~/.bashrc && \
+    echo 'export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH"' >> ~/.profile
+ENV PATH="/home/ubuntu/.cargo/bin:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:${PATH}"
+
+# Create workspace dir and set ownership
 WORKDIR /workspace
 
 # Source ROS1 environment
@@ -19,5 +30,5 @@ ENV CMAKE_PREFIX_PATH="/opt/ros/noetic"
 ENV ROS_PACKAGE_PATH="/opt/ros/noetic/share"
 ENV ROSRUST_MSG_PATH="/opt/ros/noetic/share"
 
-# Default command builds the ROS1 image source node
-CMD ["cargo", "build", "-p", "ros1-image-source"]
+# Default command - just keep container running
+CMD ["tail", "-f", "/dev/null"]

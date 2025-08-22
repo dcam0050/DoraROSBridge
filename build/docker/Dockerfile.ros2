@@ -1,25 +1,59 @@
 # Build ROS2 nodes with Rolling and Rust toolchain, output to /workspace/target
 FROM ros:rolling-ros-base
 
-# Install build essentials, Rust, and ROS2 tools
+# Install build essentials, Rust, ROS2 tools, GStreamer, and audio dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential cmake curl git ca-certificates pkg-config \
+    libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev \
+    libgstreamer-plugins-bad1.0-dev gstreamer1.0-plugins-base \
+    gstreamer1.0-plugins-good gstreamer1.0-plugins-bad \
+    gstreamer1.0-plugins-ugly gstreamer1.0-libav gstreamer1.0-tools \
+    libasound2-dev libpulse-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install rustup + stable toolchain
-RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal
-ENV PATH="/root/.cargo/bin:${PATH}"
+# Install additional dependencies for audio and GUI, plus CycloneDDS
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git wget python3-pip python3-colcon-common-extensions \
+    portaudio19-dev libespeak-dev espeak \
+    libx11-dev libxext-dev libxrender-dev libxrandr-dev \
+    libxtst-dev libxi-dev libxfixes-dev libxcursor-dev \
+    libxcomposite-dev libxdamage-dev libxss-dev \
+    ros-rolling-rmw-cyclonedds-cpp \
+    && rm -rf /var/lib/apt/lists/*
 
-# Create workspace dir
+# Install audio_common from source using ROS2 workspace
+RUN mkdir -p /opt/ros2_ws/src && cd /opt/ros2_ws/src && \
+    git clone https://github.com/mgonzs13/audio_common.git && \
+    cd /opt/ros2_ws && \
+    bash -c "apt-get update && source /opt/ros/rolling/setup.bash && rosdep install --from-paths src --ignore-src -r -y --skip-keys='ament-clang-format,ament-cmake-clang-format' && colcon build && rm -rf /var/lib/apt/lists/*" && \
+    echo "source /opt/ros2_ws/install/setup.bash" >> ~/.bashrc
+
+# Use existing ubuntu user (UID 1000) and add sudo privileges
+RUN usermod -aG sudo ubuntu && \
+    echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+
+# Install rustup and latest stable Rust
+USER ubuntu
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal && \
+    . ~/.cargo/env && \
+    rustup default stable && \
+    echo 'export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH"' >> ~/.bashrc && \
+    echo 'export PATH="$HOME/.cargo/bin:$HOME/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:$PATH"' >> ~/.profile
+ENV PATH="/home/ubuntu/.cargo/bin:/home/ubuntu/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin:${PATH}"
+
+# Create workspace dir and set ownership
 WORKDIR /workspace
 
-# Source ROS2 environment
+# Source ROS2 environment and set CycloneDDS configuration
 RUN echo "source /opt/ros/rolling/setup.bash" >> ~/.bashrc
 ENV PATH="/opt/ros/rolling/bin:${PATH}"
 ENV LD_LIBRARY_PATH="/opt/ros/rolling/lib"
 ENV PYTHONPATH="/opt/ros/rolling/lib/python3/dist-packages"
 ENV ROS_DISTRO="rolling"
 ENV ROS_VERSION="2"
+ENV RMW_IMPLEMENTATION="rmw_cyclonedds_cpp"
+ENV ROS_DOMAIN_ID="42"
+ENV ROS_LOCALHOST_ONLY="0"
 
-# Default command builds the ROS2 image sink node
-CMD ["cargo", "build", "-p", "ros2-image-sink"]
+# Default command - just keep container running
+CMD ["tail", "-f", "/dev/null"]

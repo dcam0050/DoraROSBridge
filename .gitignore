@@ -1,5 +1,7 @@
 # Rust build artifacts
 target/
+target-ros1/
+target-ros2/
 Cargo.lock
 
 # IDE files
