@@ -110,6 +110,21 @@ tasks:
         check_ros2 && 
         {{.BUILD_SCRIPTS_DIR}}/deploy-viewer.sh standalone'
 
+  deploy:player:
+    desc: Launch ROS2 audio player on host system
+    cmds:
+      - |
+        bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
+        check_ros2 && 
+        echo "🎵 Starting ROS2 audio player on host system..." && 
+        echo "ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-42}" && 
+        echo "Subscribing to /audio topic..." && 
+        export ROS_DOMAIN_ID=${ROS_DOMAIN_ID:-42} && 
+        export ROS_LOCALHOST_ONLY=${ROS_LOCALHOST_ONLY:-0} && 
+        ros2 run audio_common audio_player_node'
+
+
+
   test:x11:
     desc: Basic X11 connectivity test
     cmds:
@@ -356,6 +371,7 @@ tasks:
         echo "" && 
         echo "📺 Viewer & Debug:" && 
         echo "  task deploy:viewer     # ROS2 viewer" && 
+        echo "  task deploy:player     # ROS2 audio player" && 
         echo "  task test:gui          # Test GUI apps" && 
         echo "  task monitor:topics    # Monitor topics" && 
         echo "  task test:gpu          # GPU diagnostics" && 
