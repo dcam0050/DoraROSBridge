@@ -217,14 +217,72 @@ tasks:
         bash -c 'source {{.BUILD_SCRIPTS_DIR}}/common.sh && 
         check_dora && check_ros2 && check_ros1 && 
         echo "🚀 Starting complete system..." && 
-        TTS_PID=$(deploy_tts_bridge) && sleep 2 && 
-        echo "Starting image dataflow..." && 
-        dora run {{.NODES_DIR}}/image/dataflow.image.yml & IMAGE_PID=$! &&
-        echo "Complete system started successfully!" && 
-        echo "Remote TTS bridge PID: $TTS_PID" && 
-        echo "Image dataflow PID: $IMAGE_PID" && 
         echo "Press Ctrl+C to stop all processes" && 
-        trap "cleanup && exit 0" SIGINT SIGTERM && wait'
+        
+        # Array to track PIDs
+        PIDS=() && 
+        
+        # Cleanup function
+        cleanup() {
+          echo ""
+          echo "🛑 Shutting down complete system..."
+          for pid in "${PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "Stopping process $pid..."
+              kill "$pid" 2>/dev/null || true
+            fi
+          done
+          # Give processes time to cleanup
+          sleep 2
+          # Force kill any remaining processes
+          for pid in "${PIDS[@]}"; do
+            if kill -0 "$pid" 2>/dev/null; then
+              echo "Force killing process $pid..."
+              kill -9 "$pid" 2>/dev/null || true
+            fi
+          done
+          echo "✅ All processes stopped"
+          exit 0
+        } && 
+        
+        # Set up signal handlers
+        trap cleanup SIGINT SIGTERM && 
+        
+        # Start vision system
+        echo "🖼️  Starting vision system..." && 
+        task run:vision & PIDS+=($!) && 
+        sleep 2 && 
+        
+        # Start TTS system
+        echo "🗣️  Starting TTS system..." && 
+        task run:tts & PIDS+=($!) && 
+        sleep 2 && 
+        
+        # Start audio system
+        echo "🎵 Starting audio system..." && 
+        task run:audio & PIDS+=($!) && 
+        sleep 2 && 
+        
+        # Start custom message system
+        echo "📨 Starting custom message system..." && 
+        task run:custom & PIDS+=($!) && 
+        sleep 2 && 
+        
+        # Start audio player
+        echo "🔊 Starting audio player..." && 
+        task deploy:player & PIDS+=($!) && 
+        sleep 2 && 
+        
+        # Start viewer (foreground - this will keep the script running)
+        echo "📺 Starting viewer..." && 
+        task deploy:viewer & PIDS+=($!) && 
+        
+        echo "✅ All systems started!" && 
+        echo "Vision: ${PIDS[0]}, TTS: ${PIDS[1]}, Audio: ${PIDS[2]}, Custom: ${PIDS[3]}, Player: ${PIDS[4]}, Viewer: ${PIDS[5]}" && 
+        echo "Press Ctrl+C to stop all processes" && 
+        
+        # Wait for any process to exit or for signal
+        wait'
 
   # Testing Tasks (for validation)
   test:release:
